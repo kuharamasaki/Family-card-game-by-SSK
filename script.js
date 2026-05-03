@@ -36,6 +36,18 @@ const actionLabels = {
   piercingAttack: "貫通攻撃",
 };
 
+const defaultBaselines = {
+  normal: 150,
+  rare: 200,
+  super_rare: 300,
+  normalEvolution: 200,
+  rareEvolution: 250,
+  superRareEvolution: 350,
+  evolutionLevel: 35,
+};
+
+const baselineStorageKey = "luminaBattleBaselines";
+
 let ownedCards = [];
 let ownerName = "";
 let player = null;
@@ -44,6 +56,7 @@ let turn = 1;
 let battleOver = false;
 
 const jsonInput = document.querySelector("#jsonInput");
+const baselineInputs = document.querySelectorAll("[data-balance-key]");
 const poolSummary = document.querySelector("#poolSummary");
 const selectTitle = document.querySelector("#selectTitle");
 const selectScreen = document.querySelector("#selectScreen");
@@ -88,6 +101,105 @@ function normalizeCard(card) {
     defense,
     speed,
     evolvesFrom: card.evolvesFrom ?? null,
+  };
+}
+
+function getSavedBaselines() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(baselineStorageKey) ?? "{}");
+    return Object.fromEntries(
+      Object.entries(defaultBaselines).map(([key, value]) => [key, Number(saved[key] ?? value)])
+    );
+  } catch {
+    return { ...defaultBaselines };
+  }
+}
+
+function getBaselines() {
+  const baselines = { ...defaultBaselines };
+
+  for (const input of baselineInputs) {
+    baselines[input.dataset.balanceKey] =
+      Number(input.value || defaultBaselines[input.dataset.balanceKey]);
+  }
+
+  return baselines;
+}
+
+function saveBaselines() {
+  localStorage.setItem(baselineStorageKey, JSON.stringify(getBaselines()));
+}
+
+function setupBaselineInputs() {
+  const saved = getSavedBaselines();
+
+  for (const input of baselineInputs) {
+    input.value = saved[input.dataset.balanceKey] ?? defaultBaselines[input.dataset.balanceKey];
+    input.addEventListener("input", () => {
+      saveBaselines();
+      renderChoices();
+
+      if (player && cpu) {
+        renderBattle();
+      }
+    });
+  }
+}
+
+function rarityBaselineKey(card) {
+  if (card.evolvesFrom) {
+    if (card.rarity === "super_rare" || card.rarity === "superRare") {
+      return "superRareEvolution";
+    }
+
+    if (card.rarity === "rare") {
+      return "rareEvolution";
+    }
+
+    return "normalEvolution";
+  }
+
+  if (card.rarity === "super_rare" || card.rarity === "superRare") {
+    return "super_rare";
+  }
+
+  if (card.rarity === "rare") {
+    return "rare";
+  }
+
+  return "normal";
+}
+
+function statTotal(card) {
+  return card.hp + card.attack + card.defense + card.speed;
+}
+
+function balanceCheck(card) {
+  const baselines = getBaselines();
+  const key = rarityBaselineKey(card);
+  const baseline = baselines[key];
+  const tolerance = baselines.evolutionLevel;
+  const total = statTotal(card);
+  const diff = total - baseline;
+  const cardType = card.evolvesFrom ? "進化体" : "通常";
+
+  if (Math.abs(diff) <= tolerance) {
+    return {
+      className: "good",
+      text: `基準OK: ${cardType} / 合計${total} / 基準${baseline}`,
+    };
+  }
+
+  if (diff > 0) {
+    return {
+      className: "danger",
+      text: `強すぎるかも: 合計${total} / 基準${baseline}。基準から+${diff}離れています。変更してください。`,
+    };
+  }
+
+  return {
+    className: "warning",
+    text: `弱すぎるかも: 合計${total} / 基準${baseline}。基準から${diff}離れています。変更してください。`,
   };
 }
 
@@ -286,6 +398,11 @@ function evolutionHtml(card) {
   return `<span class="meta-pill">進化元: ${card.evolvesFrom.name}</span>`;
 }
 
+function balanceHtml(card) {
+  const check = balanceCheck(card);
+  return `<p class="balance-note ${check.className}">${check.text}</p>`;
+}
+
 function renderCard(target, card) {
   target.style.setProperty("--element-color", elementColors[card.attribute] ?? "#24745a");
   target.style.setProperty("--hp-percent", hpPercent(card));
@@ -304,6 +421,7 @@ function renderCard(target, card) {
       <div class="stat"><span>防御</span><strong>${card.defense}</strong></div>
       <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
     </div>
+    ${balanceHtml(card)}
     <div class="hp-wrap">
       <div class="hp-row"><span>HP</span><span>${card.currentHp}/${card.maxHp}</span></div>
       <div class="hp-bar"><div class="hp-fill"></div></div>
@@ -397,6 +515,7 @@ function renderChoices() {
         <div class="stat"><span>防御</span><strong>${card.defense}</strong></div>
         <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
       </div>
+      ${balanceHtml(card)}
     `;
     button.addEventListener("click", () => startBattle(card));
     cardChoices.append(button);
@@ -446,4 +565,5 @@ jsonInput.addEventListener("change", (event) => {
 });
 
 resetButton.addEventListener("click", resetGame);
+setupBaselineInputs();
 renderChoices();
