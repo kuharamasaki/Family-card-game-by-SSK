@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Family-card-game by SSK</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Family-card-game by SSK</p>
+          <h1>カードバトル</h1>
+        </div>
+        <button id="resetButton" class="icon-button" type="button" aria-label="リセット" title="リセット">↻</button>
+      </section>
+
+      <section id="selectScreen" class="select-screen">
+        <h2>カードを選んでね</h2>
+        <div id="cardChoices" class="choice-grid"></div>
+      </section>
+
+      <section id="battleScreen" class="battle-screen is-hidden">
+        <div class="battle-board">
+          <article class="fighter player">
+            <p class="side-label">あなた</p>
+            <div id="playerCard" class="card-panel"></div>
+          </article>
+
+          <div class="turn-panel">
+            <p id="turnLabel">1ターン目</p>
+            <p id="statusText">スキルを選んでね</p>
+          </div>
+
+          <article class="fighter cpu">
+            <p class="side-label">CPU</p>
+            <div id="cpuCard" class="card-panel"></div>
+          </article>
+        </div>
+
+        <div id="actionButtons" class="actions"></div>
+
+        <section class="log-panel">
+          <h2>バトルログ</h2>
+          <ol id="battleLog"></ol>
+        </section>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
