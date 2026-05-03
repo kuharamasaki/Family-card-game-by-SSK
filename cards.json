@@ -1,0 +1,23 @@
+[
+  {
+    "name": "ミドニャ",
+    "hp": 150,
+    "attack": 50,
+    "defense": 30,
+    "element": "草"
+  },
+  {
+    "name": "ミズニャ",
+    "hp": 150,
+    "attack": 30,
+    "defense": 50,
+    "element": "みず"
+  },
+  {
+    "name": "ヒエンギョ",
+    "hp": 130,
+    "attack": 70,
+    "defense": 30,
+    "element": "炎"
+  }
+]
