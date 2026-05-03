@@ -82,6 +82,7 @@ h2 {
   box-shadow: var(--shadow);
 }
 
+.import-screen,
 .select-screen,
 .log-panel,
 .turn-panel,
@@ -92,8 +93,44 @@ h2 {
   box-shadow: var(--shadow);
 }
 
+.import-screen,
 .select-screen {
   padding: 18px;
+}
+
+.import-screen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+#poolSummary {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 48px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.file-button input {
+  width: 1px;
+  height: 1px;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .choice-grid {
@@ -103,7 +140,7 @@ h2 {
 }
 
 .choice-button {
-  min-height: 420px;
+  min-height: 510px;
   padding: 16px;
   border: 2px solid transparent;
   border-radius: 8px;
@@ -162,7 +199,7 @@ h2 {
 }
 
 .card-panel {
-  min-height: 560px;
+  min-height: 650px;
   padding: 18px;
   position: relative;
   overflow: hidden;
@@ -206,6 +243,26 @@ h2 {
   background: var(--element-color, var(--accent));
   color: #fff;
   font-size: 14px;
+  font-weight: 800;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f9fbf8;
+  color: var(--ink);
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -270,6 +327,16 @@ h2 {
   font-weight: 800;
 }
 
+.empty-message {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.68);
+  font-weight: 800;
+}
+
 .actions {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -327,8 +394,13 @@ h2 {
 
   .choice-grid,
   .battle-board,
-  .actions {
+  .actions,
+  .import-screen {
     grid-template-columns: 1fr;
+  }
+
+  .import-screen {
+    display: grid;
   }
 
   .turn-panel {
@@ -336,6 +408,6 @@ h2 {
   }
 
   .card-panel {
-    min-height: 520px;
+    min-height: 610px;
   }
 }

@@ -16,8 +16,19 @@
         <button id="resetButton" class="icon-button" type="button" aria-label="リセット" title="リセット">↻</button>
       </section>
 
+      <section class="import-screen">
+        <div>
+          <h2>カードJSONを読み込む</h2>
+          <p id="poolSummary">ルミナビーストのバトル用JSONを選んでください。</p>
+        </div>
+        <label class="file-button">
+          JSONを選ぶ
+          <input id="jsonInput" type="file" accept="application/json,.json">
+        </label>
+      </section>
+
       <section id="selectScreen" class="select-screen">
-        <h2>カードを選んでね</h2>
+        <h2 id="selectTitle">使用できるカード</h2>
         <div id="cardChoices" class="choice-grid"></div>
       </section>
 

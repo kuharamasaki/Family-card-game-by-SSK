@@ -1,40 +1,30 @@
-const cards = [
-  {
-    name: "ミドニャ",
-    hp: 150,
-    attack: 50,
-    defense: 30,
-    element: "草",
-    image: "assets/cards/midonya.png",
-  },
-  {
-    name: "ミズニャ",
-    hp: 150,
-    attack: 30,
-    defense: 50,
-    element: "みず",
-    image: "assets/cards/mizunya.png",
-  },
-  {
-    name: "ヒエンギョ",
-    hp: 130,
-    attack: 70,
-    defense: 30,
-    element: "炎",
-    image: "assets/cards/hiengyo.png",
-  },
-];
+const expectedFormat = "lumina-battle-export-v1";
 
 const elementAdvantage = {
-  "炎": "草",
-  "草": "みず",
-  "みず": "炎",
+  fire: "plant",
+  plant: "water",
+  water: "fire",
+  electric: "water",
+  star: "electric",
+  "star-electric": "fire",
+};
+
+const fallbackElementLabels = {
+  fire: "炎",
+  plant: "草",
+  water: "みず",
+  electric: "電気",
+  star: "星",
+  "star-electric": "星・電気",
 };
 
 const elementColors = {
-  "炎": "#cf4f2c",
-  "草": "#3c8f52",
-  "みず": "#2b6fba",
+  fire: "#cf4f2c",
+  plant: "#3c8f52",
+  water: "#2b6fba",
+  electric: "#a57b13",
+  star: "#6f55b8",
+  "star-electric": "#7d5ac7",
 };
 
 const actionLabels = {
@@ -46,11 +36,16 @@ const actionLabels = {
   piercingAttack: "貫通攻撃",
 };
 
+let ownedCards = [];
+let ownerName = "";
 let player = null;
 let cpu = null;
 let turn = 1;
 let battleOver = false;
 
+const jsonInput = document.querySelector("#jsonInput");
+const poolSummary = document.querySelector("#poolSummary");
+const selectTitle = document.querySelector("#selectTitle");
 const selectScreen = document.querySelector("#selectScreen");
 const battleScreen = document.querySelector("#battleScreen");
 const cardChoices = document.querySelector("#cardChoices");
@@ -61,6 +56,61 @@ const battleLog = document.querySelector("#battleLog");
 const turnLabel = document.querySelector("#turnLabel");
 const statusText = document.querySelector("#statusText");
 const resetButton = document.querySelector("#resetButton");
+
+function normalizeCard(card) {
+  const stats = card.stats ?? {};
+  const hp = Number(stats.hp ?? 100);
+  const attack = Number(stats.power ?? 30);
+  const defense = Number(stats.defense ?? 30);
+  const speed = Number(stats.speed ?? 30);
+  const copies = Number(card.copies ?? 1);
+
+  return {
+    id: String(card.id),
+    number: card.number ?? "",
+    name: card.name ?? "名前なし",
+    nameEn: card.nameEn ?? "",
+    attribute: card.attribute ?? "unknown",
+    attributeLabel:
+      card.attributeLabel ?? fallbackElementLabels[card.attribute] ?? card.attribute ?? "属性なし",
+    rarity: card.rarity ?? "unknown",
+    rarityLabel: card.rarityLabel ?? card.rarity ?? "レア度なし",
+    image: card.image ?? "",
+    copies,
+    stats: {
+      power: attack,
+      speed,
+      defense,
+      hp,
+    },
+    hp,
+    attack,
+    defense,
+    speed,
+    evolvesFrom: card.evolvesFrom ?? null,
+  };
+}
+
+function parseBattleExport(rawText) {
+  const data = JSON.parse(rawText);
+
+  if (data.format !== expectedFormat) {
+    throw new Error(`対応していないJSONです: ${data.format ?? "formatなし"}`);
+  }
+
+  if (!Array.isArray(data.cards)) {
+    throw new Error("cards配列がありません。");
+  }
+
+  const cards = data.cards.map(normalizeCard).filter((card) => card.copies > 0);
+
+  return {
+    owner: data.owner ?? {},
+    totalCards: Number(data.totalCards ?? 0),
+    uniqueCards: Number(data.uniqueCards ?? cards.length),
+    cards,
+  };
+}
 
 function makeBattleCard(card) {
   return {
@@ -80,7 +130,7 @@ function baseDefensePower(card) {
 }
 
 function hasElementAdvantage(attacker, defender) {
-  return elementAdvantage[attacker.element] === defender.element;
+  return elementAdvantage[attacker.attribute] === defender.attribute;
 }
 
 function actionDamage(attacker, defender, action) {
@@ -220,16 +270,39 @@ function hpPercent(card) {
   return `${Math.max(0, (card.currentHp / card.maxHp) * 100)}%`;
 }
 
+function imageHtml(card, extraClass = "") {
+  if (!card.image) {
+    return `<div class="card-art missing-art ${extraClass}">画像なし</div>`;
+  }
+
+  return `<img class="card-art ${extraClass}" src="${card.image}" alt="${card.name}のカード画像">`;
+}
+
+function evolutionHtml(card) {
+  if (!card.evolvesFrom) {
+    return "";
+  }
+
+  return `<span class="meta-pill">進化元: ${card.evolvesFrom.name}</span>`;
+}
+
 function renderCard(target, card) {
-  target.style.setProperty("--element-color", elementColors[card.element]);
+  target.style.setProperty("--element-color", elementColors[card.attribute] ?? "#24745a");
   target.style.setProperty("--hp-percent", hpPercent(card));
   target.innerHTML = `
-    <img class="card-art" src="${card.image}" alt="${card.name}のカード画像">
+    ${imageHtml(card)}
     <h2 class="card-name">${card.name}</h2>
-    <span class="element-tag">${card.element}</span>
+    <span class="element-tag">${card.attributeLabel}</span>
+    <div class="meta-row">
+      <span class="meta-pill">${card.rarityLabel}</span>
+      <span class="meta-pill">所持: ${card.copies}枚</span>
+      ${evolutionHtml(card)}
+    </div>
     <div class="stats">
+      <div class="stat"><span>HP</span><strong>${card.currentHp}/${card.maxHp}</strong></div>
       <div class="stat"><span>攻撃</span><strong>${card.attack}</strong></div>
       <div class="stat"><span>防御</span><strong>${card.defense}</strong></div>
+      <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
     </div>
     <div class="hp-wrap">
       <div class="hp-row"><span>HP</span><span>${card.currentHp}/${card.maxHp}</span></div>
@@ -277,8 +350,13 @@ function renderBattle() {
 }
 
 function startBattle(selectedCard) {
+  if (ownedCards.length < 2) {
+    poolSummary.textContent = "バトルにはカードが2種類以上必要です。";
+    return;
+  }
+
   player = makeBattleCard(selectedCard);
-  const cpuChoices = cards.filter((card) => card.name !== selectedCard.name);
+  const cpuChoices = ownedCards.filter((card) => card.id !== selectedCard.id);
   cpu = makeBattleCard(cpuChoices[Math.floor(Math.random() * cpuChoices.length)]);
   turn = 1;
   battleOver = false;
@@ -293,19 +371,31 @@ function startBattle(selectedCard) {
 function renderChoices() {
   cardChoices.innerHTML = "";
 
-  for (const card of cards) {
+  if (ownedCards.length === 0) {
+    cardChoices.innerHTML =
+      `<p class="empty-message">まだカードJSONが読み込まれていません。</p>`;
+    return;
+  }
+
+  for (const card of ownedCards) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "choice-button";
-    button.style.setProperty("--element-color", elementColors[card.element]);
+    button.style.setProperty("--element-color", elementColors[card.attribute] ?? "#24745a");
     button.innerHTML = `
-      <img class="card-art choice-art" src="${card.image}" alt="${card.name}のカード画像">
+      ${imageHtml(card, "choice-art")}
       <h3 class="card-name">${card.name}</h3>
-      <span class="element-tag">${card.element}</span>
+      <span class="element-tag">${card.attributeLabel}</span>
+      <div class="meta-row">
+        <span class="meta-pill">${card.rarityLabel}</span>
+        <span class="meta-pill">所持: ${card.copies}枚</span>
+        ${evolutionHtml(card)}
+      </div>
       <div class="stats">
         <div class="stat"><span>HP</span><strong>${card.hp}</strong></div>
         <div class="stat"><span>攻撃</span><strong>${card.attack}</strong></div>
         <div class="stat"><span>防御</span><strong>${card.defense}</strong></div>
+        <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
       </div>
     `;
     button.addEventListener("click", () => startBattle(card));
@@ -323,6 +413,37 @@ function resetGame() {
   battleLog.innerHTML = "";
   statusText.textContent = "スキルを選んでね";
 }
+
+function loadBattleExport(file) {
+  const reader = new FileReader();
+
+  reader.addEventListener("load", () => {
+    try {
+      const result = parseBattleExport(String(reader.result));
+      ownedCards = result.cards;
+      ownerName = result.owner.name ?? "名前なし";
+      selectTitle.textContent = `${ownerName}のカードプール`;
+      poolSummary.textContent =
+        `${ownerName}専用: ${ownedCards.length}種類 / 合計${result.totalCards}枚`;
+      resetGame();
+      renderChoices();
+    } catch (error) {
+      ownedCards = [];
+      poolSummary.textContent = error.message;
+      renderChoices();
+    }
+  });
+
+  reader.readAsText(file, "utf-8");
+}
+
+jsonInput.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+
+  if (file) {
+    loadBattleExport(file);
+  }
+});
 
 resetButton.addEventListener("click", resetGame);
 renderChoices();
