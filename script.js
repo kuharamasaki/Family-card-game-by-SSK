@@ -1,7 +1,28 @@
 const cards = [
-  { name: "ミドニャ", hp: 150, attack: 50, defense: 30, element: "草" },
-  { name: "ミズニャ", hp: 150, attack: 30, defense: 50, element: "みず" },
-  { name: "ヒエンギョ", hp: 130, attack: 70, defense: 30, element: "炎" },
+  {
+    name: "ミドニャ",
+    hp: 150,
+    attack: 50,
+    defense: 30,
+    element: "草",
+    image: "assets/cards/midonya.png",
+  },
+  {
+    name: "ミズニャ",
+    hp: 150,
+    attack: 30,
+    defense: 50,
+    element: "みず",
+    image: "assets/cards/mizunya.png",
+  },
+  {
+    name: "ヒエンギョ",
+    hp: 130,
+    attack: 70,
+    defense: 30,
+    element: "炎",
+    image: "assets/cards/hiengyo.png",
+  },
 ];
 
 const elementAdvantage = {
@@ -203,6 +224,7 @@ function renderCard(target, card) {
   target.style.setProperty("--element-color", elementColors[card.element]);
   target.style.setProperty("--hp-percent", hpPercent(card));
   target.innerHTML = `
+    <img class="card-art" src="${card.image}" alt="${card.name}のカード画像">
     <h2 class="card-name">${card.name}</h2>
     <span class="element-tag">${card.element}</span>
     <div class="stats">
@@ -277,6 +299,7 @@ function renderChoices() {
     button.className = "choice-button";
     button.style.setProperty("--element-color", elementColors[card.element]);
     button.innerHTML = `
+      <img class="card-art choice-art" src="${card.image}" alt="${card.name}のカード画像">
       <h3 class="card-name">${card.name}</h3>
       <span class="element-tag">${card.element}</span>
       <div class="stats">
