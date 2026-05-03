@@ -103,7 +103,7 @@ h2 {
 }
 
 .choice-button {
-  min-height: 188px;
+  min-height: 420px;
   padding: 16px;
   border: 2px solid transparent;
   border-radius: 8px;
@@ -162,7 +162,7 @@ h2 {
 }
 
 .card-panel {
-  min-height: 260px;
+  min-height: 560px;
   padding: 18px;
   position: relative;
   overflow: hidden;
@@ -180,6 +180,21 @@ h2 {
   margin-bottom: 8px;
   font-size: 28px;
   line-height: 1.1;
+}
+
+.card-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 320 / 465;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #eef3ef;
+  object-fit: cover;
+}
+
+.choice-art {
+  max-height: 260px;
 }
 
 .element-tag {
@@ -321,6 +336,6 @@ h2 {
   }
 
   .card-panel {
-    min-height: 230px;
+    min-height: 520px;
   }
 }
