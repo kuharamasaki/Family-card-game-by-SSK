@@ -93,6 +93,51 @@ const accounts = [
   { id: "sousuke", name: "ソウスケ" },
   { id: "emma", name: "エマ" },
 ];
+
+const shortBattleCards = [
+  {
+    id: "short-card-002",
+    number: "002",
+    name: "ミズラビ",
+    nameEn: "Mizurabi",
+    attribute: "water",
+    attributeLabel: "水",
+    rarity: "Normal",
+    rarityLabel: "ノーマル",
+    image: "/cards/002_mizurabi_water_normal.png",
+    copies: 1,
+    stats: { power: 39, speed: 54, defense: 44, hp: 66 },
+    evolvesFrom: null,
+  },
+  {
+    id: "short-card-003",
+    number: "003",
+    name: "モリネ",
+    nameEn: "Morine",
+    attribute: "plant",
+    attributeLabel: "草",
+    rarity: "Normal",
+    rarityLabel: "ノーマル",
+    image: "/cards/003_morine_plant_normal.png",
+    copies: 1,
+    stats: { power: 36, speed: 49, defense: 48, hp: 68 },
+    evolvesFrom: null,
+  },
+  {
+    id: "short-card-025",
+    number: "025",
+    name: "ファイケル",
+    nameEn: "Faikel",
+    attribute: "fire",
+    attributeLabel: "炎",
+    rarity: "Normal",
+    rarityLabel: "ノーマル",
+    image: "/cards/25_faikel_fire_normal.png",
+    copies: 1,
+    stats: { power: 43, speed: 55, defense: 34, hp: 60 },
+    evolvesFrom: null,
+  },
+];
 const activeAccountStorageKey = "luminaBattleActiveAccount";
 const deckStorageKeyPrefix = "luminaBattleDecks";
 
@@ -114,6 +159,7 @@ let turn = 1;
 let battleOver = false;
 
 const jsonInput = document.querySelector("#jsonInput");
+const shortBattleButton = document.querySelector("#shortBattleButton");
 const accountButtons = document.querySelectorAll("[data-account-id]");
 const accountSummary = document.querySelector("#accountSummary");
 const tabButtons = document.querySelectorAll("[data-tab]");
@@ -1010,6 +1056,35 @@ function loadBattleExport(file) {
   reader.readAsText(file, "utf-8");
 }
 
+function makeDeckFromCards(cards) {
+  return cards.map((card) => ({
+    uid: crypto.randomUUID(),
+    card,
+    move: getMoves(card)[0],
+  }));
+}
+
+function startShortBattle() {
+  ownedCards = shortBattleCards.map(normalizeCard);
+  ownerName = "ショートバトル";
+  battleMode = "cpu";
+
+  for (const input of battleModeInputs) {
+    input.checked = input.value === "cpu";
+  }
+
+  teams = [createTeam("ショートバトル")];
+  activeTeamId = teams[0].id;
+  teams[0].deck = makeDeckFromCards(ownedCards);
+  syncPlayerDeck();
+  playerTwoDeck = [];
+  selectTitle.textContent = "ショートバトルの3体";
+  poolSummary.textContent = "ミズラビ・モリネ・ファイケルだけで、すぐ遊べます。";
+  resetGame();
+  renderAll();
+  startBattle();
+}
+
 jsonInput.addEventListener("change", (event) => {
   const file = event.target.files?.[0];
 
@@ -1017,6 +1092,8 @@ jsonInput.addEventListener("change", (event) => {
     loadBattleExport(file);
   }
 });
+
+shortBattleButton.addEventListener("click", startShortBattle);
 
 for (const button of accountButtons) {
   button.addEventListener("click", () => {

@@ -114,6 +114,13 @@ h2 {
   margin-bottom: 16px;
 }
 
+.import-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .account-screen {
   display: flex;
   align-items: center;
@@ -694,7 +701,8 @@ h2 {
 
   .team-head,
   .team-actions,
-  .card-controls {
+  .card-controls,
+  .import-actions {
     display: grid;
   }
 
