@@ -89,6 +89,7 @@ format: lumina-battle-export-v1
 
 カード画像は、カードファイル内の `image` をそのまま使います。
 `image` は `/cards/...` 形式で、バトル側では公開フォルダの `cards` を参照します。
+GitHub Pagesやローカル表示でも画像が出るように、画面表示時は `cards/...` として参照します。
 
 表示する内容:
 

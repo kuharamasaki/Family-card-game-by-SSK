@@ -251,9 +251,8 @@ function imageSrc(image) {
     return "";
   }
 
-  if (image.startsWith("/cards/") && window.location.hostname.endsWith("github.io")) {
-    const basePath = window.location.pathname.split("/").filter(Boolean)[0];
-    return basePath ? `/${basePath}${image}` : image;
+  if (image.startsWith("/cards/")) {
+    return image.slice(1);
   }
 
   return image;
