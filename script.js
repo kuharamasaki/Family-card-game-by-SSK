@@ -1,6 +1,6 @@
 const expectedFormat = "lumina-battle-export-v1";
 const maxDeckSize = 5;
-const statKeys = ["hp", "attack", "defense", "speed"];
+const statKeys = ["hp", "attack", "defense"];
 
 const rarityBaselines = {
   normal: 150,
@@ -117,6 +117,7 @@ const selectScreen = document.querySelector("#selectScreen");
 const teamScreen = document.querySelector("#teamScreen");
 const trainingScreen = document.querySelector("#trainingScreen");
 const trainingCards = document.querySelector("#trainingCards");
+const trainingSummary = document.querySelector("#trainingSummary");
 const battleScreen = document.querySelector("#battleScreen");
 const cardChoices = document.querySelector("#cardChoices");
 const teamSelect = document.querySelector("#teamSelect");
@@ -866,6 +867,7 @@ function renderAll() {
 
 function renderTraining() {
   trainingCards.innerHTML = "";
+  trainingSummary.textContent = "HP・攻撃・防御をキーボードで直接入力できます。";
 
   if (ownedCards.length === 0) {
     trainingCards.innerHTML = `<p class="empty-message">まだカードが読み込まれていません。</p>`;
@@ -887,10 +889,9 @@ function renderTraining() {
             ${evolutionHtml(card)}
           </div>
           <div class="training-form">
-            <label>HP<input data-stat="hp" type="number" min="1" value="${card.hp}"></label>
-            <label>攻撃<input data-stat="attack" type="number" min="1" value="${card.attack}"></label>
-            <label>防御<input data-stat="defense" type="number" min="1" value="${card.defense}"></label>
-            <label>すばやさ<input data-stat="speed" type="number" min="1" value="${card.speed}"></label>
+            <label>HP<input data-stat="hp" type="number" inputmode="numeric" min="1" value="${card.hp}"></label>
+            <label>攻撃<input data-stat="attack" type="number" inputmode="numeric" min="1" value="${card.attack}"></label>
+            <label>防御<input data-stat="defense" type="number" inputmode="numeric" min="1" value="${card.defense}"></label>
           </div>
           <p class="${message.className}">${message.text}</p>
         </div>
