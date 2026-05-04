@@ -27,7 +27,12 @@
         </label>
       </section>
 
-      <section id="teamScreen" class="team-screen">
+      <nav class="tab-nav" aria-label="画面切り替え">
+        <button class="tab-button is-active" type="button" data-tab="team">チーム編成</button>
+        <button class="tab-button" type="button" data-tab="training">特訓場</button>
+      </nav>
+
+      <section id="teamScreen" class="team-screen app-tab">
         <div class="team-head">
           <div>
             <h2>チーム編成</h2>
@@ -37,6 +42,14 @@
             <label><input name="battleMode" type="radio" value="cpu" checked> CP対戦</label>
             <label><input name="battleMode" type="radio" value="twoPlayer"> 二人対戦</label>
           </div>
+        </div>
+        <div class="team-manager">
+          <label>
+            使うチーム
+            <select id="teamSelect"></select>
+          </label>
+          <button id="newTeamButton" class="plain-button" type="button">新しいチーム</button>
+          <button id="deleteTeamButton" class="plain-button" type="button">チーム削除</button>
         </div>
         <div class="deck-grid">
           <section class="deck-panel">
@@ -57,6 +70,14 @@
       <section id="selectScreen" class="select-screen">
         <h2 id="selectTitle">チームに入れるカード</h2>
         <div id="cardChoices" class="choice-grid"></div>
+      </section>
+
+      <section id="trainingScreen" class="training-screen app-tab is-hidden">
+        <div>
+          <h2>特訓場</h2>
+          <p id="trainingSummary">カードを選んで、HP・攻撃・防御・すばやさを調整できます。</p>
+        </div>
+        <div id="trainingCards" class="training-grid"></div>
       </section>
 
       <section id="battleScreen" class="battle-screen is-hidden">

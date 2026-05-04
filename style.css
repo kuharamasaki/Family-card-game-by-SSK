@@ -84,6 +84,7 @@ h2 {
 
 .import-screen,
 .team-screen,
+.training-screen,
 .select-screen,
 .log-panel,
 .turn-panel,
@@ -96,6 +97,7 @@ h2 {
 
 .import-screen,
 .team-screen,
+.training-screen,
 .select-screen {
   padding: 18px;
 }
@@ -110,6 +112,28 @@ h2 {
 
 .team-screen {
   margin-bottom: 16px;
+}
+
+.tab-nav {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.tab-button.is-active {
+  background: var(--accent);
+  color: #fff;
 }
 
 .team-head,
@@ -144,11 +168,103 @@ h2 {
   font-weight: 800;
 }
 
+.team-manager {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.team-manager label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.team-manager select,
+.training-form input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
 .deck-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
+}
+
+.training-screen {
+  margin-bottom: 16px;
+}
+
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.training-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 25px rgba(24, 33, 28, 0.08);
+}
+
+.training-layout {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.training-card .card-art {
+  margin-bottom: 0;
+}
+
+.training-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.training-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.training-warning {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff0ed;
+  color: #aa2f24;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.training-ok {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #eef8f2;
+  color: #206c46;
+  font-weight: 900;
+  line-height: 1.45;
 }
 
 .deck-panel {
@@ -522,6 +638,9 @@ h2 {
   .choice-grid,
   .battle-board,
   .deck-grid,
+  .team-manager,
+  .training-grid,
+  .training-layout,
   .actions,
   .import-screen {
     grid-template-columns: 1fr;

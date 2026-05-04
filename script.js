@@ -1,5 +1,17 @@
 const expectedFormat = "lumina-battle-export-v1";
 const maxDeckSize = 5;
+const statKeys = ["hp", "attack", "defense", "speed"];
+
+const rarityBaselines = {
+  normal: 150,
+  rare: 200,
+  super_rare: 300,
+  ultra_rare: 500,
+  normalEvolution: 200,
+  rareEvolution: 250,
+  superRareEvolution: 350,
+  ultraRareEvolution: 550,
+};
 
 const elementAdvantage = {
   fire: "plant",
@@ -74,6 +86,8 @@ const deckStorageKey = "luminaBattleDecks";
 
 let ownedCards = [];
 let ownerName = "";
+let teams = [];
+let activeTeamId = "";
 let playerDeck = [];
 let playerTwoDeck = [];
 let battleMode = "cpu";
@@ -87,14 +101,21 @@ let turn = 1;
 let battleOver = false;
 
 const jsonInput = document.querySelector("#jsonInput");
+const tabButtons = document.querySelectorAll("[data-tab]");
+const appTabs = document.querySelectorAll(".app-tab");
 const battleModeInputs = document.querySelectorAll("[name='battleMode']");
 const poolSummary = document.querySelector("#poolSummary");
 const teamSummary = document.querySelector("#teamSummary");
 const selectTitle = document.querySelector("#selectTitle");
 const selectScreen = document.querySelector("#selectScreen");
 const teamScreen = document.querySelector("#teamScreen");
+const trainingScreen = document.querySelector("#trainingScreen");
+const trainingCards = document.querySelector("#trainingCards");
 const battleScreen = document.querySelector("#battleScreen");
 const cardChoices = document.querySelector("#cardChoices");
+const teamSelect = document.querySelector("#teamSelect");
+const newTeamButton = document.querySelector("#newTeamButton");
+const deleteTeamButton = document.querySelector("#deleteTeamButton");
 const playerDeckList = document.querySelector("#playerDeckList");
 const playerTwoDeckPanel = document.querySelector("#playerTwoDeckPanel");
 const playerTwoDeckList = document.querySelector("#playerTwoDeckList");
@@ -109,15 +130,31 @@ const statusText = document.querySelector("#statusText");
 const resetButton = document.querySelector("#resetButton");
 
 function rarityKey(rarity) {
-  if (rarity === "superRare") {
+  const value = String(rarity ?? "").toLowerCase();
+
+  if (value === "god") {
+    return "god";
+  }
+
+  if (value === "ultra_rare" || value === "ultrarare" || value === "ultra rare") {
+    return "ultra_rare";
+  }
+
+  if (value === "superrare" || value === "super rare") {
     return "super_rare";
   }
 
-  if (rarity === "rare" || rarity === "super_rare") {
-    return rarity;
+  if (value === "rare" || value === "super_rare") {
+    return value;
   }
 
   return "normal";
+}
+
+function isGodCard(card) {
+  const rarity = String(card.rarity ?? "").toLowerCase();
+  const rarityLabel = String(card.rarityLabel ?? "").toLowerCase();
+  return rarity === "god" || rarityLabel === "god" || rarityLabel.includes("ゴッド");
 }
 
 function normalizeCard(card) {
@@ -180,7 +217,10 @@ function parseBattleExport(rawText) {
     throw new Error("cards配列がありません。");
   }
 
-  const cards = data.cards.map(normalizeCard).filter((card) => card.copies > 0);
+  const cards = data.cards
+    .filter((card) => !isGodCard(card))
+    .map(normalizeCard)
+    .filter((card) => card.copies > 0 && card.rarity !== "god");
 
   return {
     owner: data.owner ?? {},
@@ -191,7 +231,7 @@ function parseBattleExport(rawText) {
 }
 
 function getMoves(card) {
-  const moves = moveTable[card.attribute]?.[card.rarity];
+  const moves = moveTable[card.attribute]?.[card.rarity] ?? moveTable[card.attribute]?.super_rare;
   return moves?.length ? moves : ["たいあたり"];
 }
 
@@ -201,6 +241,30 @@ function cardById(id) {
 
 function deckCount(deck, cardId) {
   return deck.filter((entry) => entry.card.id === cardId).length;
+}
+
+function createTeam(name = `チーム${teams.length + 1}`) {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    deck: [],
+  };
+}
+
+function activeTeam() {
+  let team = teams.find((item) => item.id === activeTeamId);
+
+  if (!team) {
+    team = teams[0] ?? createTeam("チーム1");
+    teams = teams.length ? teams : [team];
+    activeTeamId = team.id;
+  }
+
+  return team;
+}
+
+function syncPlayerDeck() {
+  playerDeck = activeTeam().deck;
 }
 
 function canAddToDeck(card, targetDeck) {
@@ -243,7 +307,12 @@ function removeFromDeck(uid, target = "player") {
 function saveDecks() {
   const payload = {
     ownerName,
-    playerDeck: playerDeck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
+    activeTeamId,
+    teams: teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      deck: team.deck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
+    })),
     playerTwoDeck: playerTwoDeck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
   };
   localStorage.setItem(deckStorageKey, JSON.stringify(payload));
@@ -259,10 +328,25 @@ function restoreDecks() {
       return;
     }
 
-    playerDeck = restoreDeck(saved.playerDeck);
+    if (Array.isArray(saved.teams) && saved.teams.length > 0) {
+      teams = saved.teams.map((team, index) => ({
+        id: team.id ?? crypto.randomUUID(),
+        name: team.name ?? `チーム${index + 1}`,
+        deck: restoreDeck(team.deck),
+      }));
+      activeTeamId = saved.activeTeamId ?? teams[0].id;
+      syncPlayerDeck();
+    } else {
+      teams = [createTeam("チーム1")];
+      activeTeamId = teams[0].id;
+      playerDeck = teams[0].deck;
+    }
+
     playerTwoDeck = restoreDeck(saved.playerTwoDeck);
   } catch {
-    playerDeck = [];
+    teams = [createTeam("チーム1")];
+    activeTeamId = teams[0].id;
+    playerDeck = teams[0].deck;
     playerTwoDeck = [];
   }
 }
@@ -495,6 +579,51 @@ function imageHtml(card, extraClass = "") {
   return `<img class="card-art ${extraClass}" src="${card.image}" alt="${card.name}のカード画像">`;
 }
 
+function rarityBaselineKey(card) {
+  if (card.evolvesFrom) {
+    if (card.rarity === "ultra_rare") {
+      return "ultraRareEvolution";
+    }
+
+    if (card.rarity === "super_rare") {
+      return "superRareEvolution";
+    }
+
+    if (card.rarity === "rare") {
+      return "rareEvolution";
+    }
+
+    return "normalEvolution";
+  }
+
+  return card.rarity;
+}
+
+function statTotal(card) {
+  return statKeys.reduce((sum, key) => sum + Number(card[key] ?? 0), 0);
+}
+
+function baselineFor(card) {
+  return rarityBaselines[rarityBaselineKey(card)] ?? rarityBaselines.normal;
+}
+
+function trainingMessage(card) {
+  const total = statTotal(card);
+  const baseline = baselineFor(card);
+
+  if (total === baseline) {
+    return {
+      className: "training-ok",
+      text: `OK: 合計${total} / 基準${baseline}`,
+    };
+  }
+
+  return {
+    className: "training-warning",
+    text: `合計${total} / 基準${baseline}。設定を変えてください。`,
+  };
+}
+
 function evolutionHtml(card) {
   if (!card.evolvesFrom) {
     return "";
@@ -638,6 +767,7 @@ function renderDeckList(deck, target, targetName) {
 }
 
 function renderDecks() {
+  renderTeamOptions();
   playerTwoDeckPanel.classList.toggle("is-hidden", battleMode !== "twoPlayer");
   renderDeckList(playerDeck, playerDeckList, "player");
   renderDeckList(playerTwoDeck, playerTwoDeckList, "playerTwo");
@@ -645,6 +775,20 @@ function renderDecks() {
   const second = battleMode === "twoPlayer" ? ` / 2P ${playerTwoDeck.length}/${maxDeckSize}` : "";
   teamSummary.textContent = `1P ${playerDeck.length}/${maxDeckSize}${second}`;
   startBattleButton.disabled = playerDeck.length === 0 || (battleMode === "twoPlayer" && playerTwoDeck.length === 0);
+}
+
+function renderTeamOptions() {
+  teamSelect.innerHTML = "";
+
+  for (const team of teams) {
+    const option = document.createElement("option");
+    option.value = team.id;
+    option.textContent = `${team.name} (${team.deck.length}/${maxDeckSize})`;
+    option.selected = team.id === activeTeamId;
+    teamSelect.append(option);
+  }
+
+  deleteTeamButton.disabled = teams.length <= 1;
 }
 
 function renderChoices() {
@@ -707,9 +851,58 @@ function renderChoices() {
 
 function renderAll() {
   renderChoices();
+  renderTraining();
 
   if (player && cpu && !battleOver) {
     renderBattle();
+  }
+}
+
+function renderTraining() {
+  trainingCards.innerHTML = "";
+
+  if (ownedCards.length === 0) {
+    trainingCards.innerHTML = `<p class="empty-message">まだカードが読み込まれていません。</p>`;
+    return;
+  }
+
+  for (const card of ownedCards) {
+    const message = trainingMessage(card);
+    const article = document.createElement("article");
+    article.className = "training-card";
+    article.innerHTML = `
+      <div class="training-layout">
+        ${imageHtml(card)}
+        <div>
+          <h3 class="card-name">${card.name}</h3>
+          <div class="meta-row">
+            <span class="meta-pill">${card.rarityLabel}</span>
+            <span class="meta-pill">${card.attributeLabel}</span>
+            ${evolutionHtml(card)}
+          </div>
+          <div class="training-form">
+            <label>HP<input data-stat="hp" type="number" min="1" value="${card.hp}"></label>
+            <label>攻撃<input data-stat="attack" type="number" min="1" value="${card.attack}"></label>
+            <label>防御<input data-stat="defense" type="number" min="1" value="${card.defense}"></label>
+            <label>すばやさ<input data-stat="speed" type="number" min="1" value="${card.speed}"></label>
+          </div>
+          <p class="${message.className}">${message.text}</p>
+        </div>
+      </div>
+    `;
+
+    for (const input of article.querySelectorAll("[data-stat]")) {
+      input.addEventListener("input", () => {
+        const key = input.dataset.stat;
+        const value = Number(input.value || 0);
+        card[key] = value;
+        card.stats[key === "attack" ? "power" : key] = value;
+        saveDecks();
+        renderAll();
+      });
+    }
+
+    trainingCards.append(article);
   }
 }
 
@@ -733,6 +926,9 @@ function loadBattleExport(file) {
       const result = parseBattleExport(String(reader.result));
       ownedCards = result.cards;
       ownerName = result.owner.name ?? "名前なし";
+      teams = [createTeam("チーム1")];
+      activeTeamId = teams[0].id;
+      playerDeck = teams[0].deck;
       selectTitle.textContent = `${ownerName}のチーム編成`;
       poolSummary.textContent =
         `${ownerName}専用: ${ownedCards.length}種類 / 合計${result.totalCards}枚`;
@@ -741,7 +937,9 @@ function loadBattleExport(file) {
       renderAll();
     } catch (error) {
       ownedCards = [];
-      playerDeck = [];
+      teams = [createTeam("チーム1")];
+      activeTeamId = teams[0].id;
+      playerDeck = teams[0].deck;
       playerTwoDeck = [];
       poolSummary.textContent = error.message;
       renderAll();
@@ -766,8 +964,53 @@ for (const input of battleModeInputs) {
   });
 }
 
+for (const button of tabButtons) {
+  button.addEventListener("click", () => {
+    const isTraining = button.dataset.tab === "training";
+
+    for (const item of tabButtons) {
+      item.classList.toggle("is-active", item === button);
+    }
+
+    for (const tab of appTabs) {
+      tab.classList.toggle("is-hidden", tab.id !== `${button.dataset.tab}Screen`);
+    }
+
+    selectScreen.classList.toggle("is-hidden", isTraining);
+  });
+}
+
+teamSelect.addEventListener("change", () => {
+  activeTeamId = teamSelect.value;
+  syncPlayerDeck();
+  saveDecks();
+  renderAll();
+});
+
+newTeamButton.addEventListener("click", () => {
+  const team = createTeam(`チーム${teams.length + 1}`);
+  teams.push(team);
+  activeTeamId = team.id;
+  syncPlayerDeck();
+  saveDecks();
+  renderAll();
+});
+
+deleteTeamButton.addEventListener("click", () => {
+  if (teams.length <= 1) {
+    return;
+  }
+
+  teams = teams.filter((team) => team.id !== activeTeamId);
+  activeTeamId = teams[0].id;
+  syncPlayerDeck();
+  saveDecks();
+  renderAll();
+});
+
 clearDeckButton.addEventListener("click", () => {
-  playerDeck = [];
+  activeTeam().deck = [];
+  syncPlayerDeck();
   playerTwoDeck = [];
   saveDecks();
   renderAll();
