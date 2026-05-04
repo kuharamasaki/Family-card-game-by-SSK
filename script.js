@@ -1,7 +1,7 @@
 const expectedFormat = "lumina-battle-export-v1";
 const maxDeckSize = 5;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260504-2";
+const cardImageVersion = "20260504-3";
 
 const rarityBaselines = {
   normal: 150,
