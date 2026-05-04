@@ -161,6 +161,42 @@ h2 {
   margin-bottom: 16px;
 }
 
+.short-setup-screen {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.short-order-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.order-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.order-controls label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.order-controls select {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
 .tab-nav {
   display: inline-flex;
   gap: 8px;
@@ -673,6 +709,102 @@ h2 {
   line-height: 1.5;
 }
 
+.short-battle-board .battle-board {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.short-battle-board .turn-panel {
+  grid-column: 1 / -1;
+  min-height: 0;
+  padding: 8px;
+  order: -1;
+}
+
+.short-battle-board .card-panel {
+  min-height: 0;
+  padding: 10px;
+}
+
+.short-battle-board .card-panel::before {
+  border-top-width: 5px;
+}
+
+.short-battle-board .card-art {
+  width: 10%;
+  min-width: 34px;
+  max-width: 48px;
+  margin: 0 8px 4px 0;
+  float: left;
+}
+
+.short-battle-board .card-name {
+  margin-bottom: 4px;
+  font-size: 18px;
+}
+
+.short-battle-board .element-tag,
+.short-battle-board .meta-pill {
+  min-height: 22px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.short-battle-board .meta-row {
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.short-battle-board .stats {
+  clear: both;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.short-battle-board .stat {
+  padding: 6px;
+}
+
+.short-battle-board .stat span {
+  font-size: 10px;
+}
+
+.short-battle-board .stat strong {
+  font-size: 15px;
+}
+
+.short-battle-board .hp-wrap {
+  margin-top: 8px;
+}
+
+.short-battle-board .hp-bar {
+  height: 12px;
+}
+
+.short-battle-board .state-text {
+  min-height: 18px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.short-battle-board .actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.short-battle-board .skill-button {
+  min-height: 44px;
+}
+
+.short-battle-board .log-panel {
+  padding: 10px;
+}
+
+.short-battle-board .log-panel ol {
+  max-height: 120px;
+}
+
 .is-hidden {
   display: none;
 }
@@ -683,15 +815,23 @@ h2 {
   }
 
   .choice-grid,
-  .battle-board,
   .deck-grid,
   .team-manager,
   .training-grid,
   .training-layout,
   .actions,
   .import-screen,
-  .account-screen {
+  .account-screen,
+  .short-order-grid {
     grid-template-columns: 1fr;
+  }
+
+  .battle-board {
+    grid-template-columns: 1fr;
+  }
+
+  .short-battle-board .battle-board {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .import-screen,

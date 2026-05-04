@@ -1,7 +1,9 @@
 const expectedFormat = "lumina-battle-export-v1";
 const maxDeckSize = 5;
+const shortBattleSize = 3;
+const shortCardTurnLimit = 4;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260504-3";
+const cardImageVersion = "20260504-4";
 
 const rarityBaselines = {
   normal: 150,
@@ -87,6 +89,7 @@ const actionLabels = {
   counter: "カウンター",
   strongAttack: "強攻撃",
   piercingAttack: "貫通攻撃",
+  skip: "行動なし",
 };
 
 const accounts = [
@@ -157,11 +160,26 @@ let player = null;
 let cpu = null;
 let turn = 1;
 let battleOver = false;
+let isShortBattle = false;
+let shortBattleMode = "cpu";
+let shortRoundIndex = 0;
+let shortRoundTurn = 1;
+let shortPlayerWins = 0;
+let shortOpponentWins = 0;
+let pendingShortPlayerAction = "";
 
 const jsonInput = document.querySelector("#jsonInput");
 const shortBattleButton = document.querySelector("#shortBattleButton");
 const accountButtons = document.querySelectorAll("[data-account-id]");
 const accountSummary = document.querySelector("#accountSummary");
+const shortSetupScreen = document.querySelector("#shortSetupScreen");
+const shortSetupSummary = document.querySelector("#shortSetupSummary");
+const shortBattleModeInputs = document.querySelectorAll("[name='shortBattleMode']");
+const shortPlayerOrder = document.querySelector("#shortPlayerOrder");
+const shortOpponentOrderPanel = document.querySelector("#shortOpponentOrderPanel");
+const shortOpponentOrder = document.querySelector("#shortOpponentOrder");
+const cancelShortBattleButton = document.querySelector("#cancelShortBattleButton");
+const startShortPreparedButton = document.querySelector("#startShortPreparedButton");
 const tabButtons = document.querySelectorAll("[data-tab]");
 const appTabs = document.querySelectorAll(".app-tab");
 const battleModeInputs = document.querySelectorAll("[name='battleMode']");
@@ -484,6 +502,7 @@ function makeBattleCard(entry) {
     maxHp: entry.card.hp,
     currentHp: entry.card.hp,
     charged: false,
+    usedActions: new Set(),
   };
 }
 
@@ -536,10 +555,16 @@ function attackHits(action) {
 }
 
 function availableActions(card) {
-  const actions = ["attack", "defense", "charge", "counter"];
+  const baseActions = ["attack", "defense", "charge", "counter"];
+  const used = card.usedActions ?? new Set();
+  const actions = isShortBattle ? baseActions.filter((action) => !used.has(action)) : baseActions;
 
   if (card.charged) {
-    actions.push("strongAttack", "piercingAttack");
+    for (const action of ["strongAttack", "piercingAttack"]) {
+      if (!isShortBattle || !used.has(action)) {
+        actions.push(action);
+      }
+    }
   }
 
   return actions;
@@ -547,6 +572,10 @@ function availableActions(card) {
 
 function chooseCpuAction() {
   const actions = availableActions(cpu);
+  if (actions.length === 0) {
+    return "skip";
+  }
+
   return actions[Math.floor(Math.random() * actions.length)];
 }
 
@@ -567,15 +596,28 @@ function resolveAttack(attacker, defender, attackerAction, defenderAction) {
 }
 
 function currentPlayerName() {
+  if (isShortBattle) {
+    return "ソウスケ";
+  }
+
   return battleMode === "twoPlayer" ? "1P" : "あなた";
 }
 
 function currentOpponentName() {
+  if (isShortBattle) {
+    return battleMode === "twoPlayer" ? "エマ" : "CPU";
+  }
+
   return battleMode === "twoPlayer" ? "2P" : "CPU";
 }
 
 function resolveTurn(playerAction) {
   if (battleOver) {
+    return;
+  }
+
+  if (isShortBattle) {
+    resolveShortTurn(playerAction);
     return;
   }
 
@@ -620,6 +662,115 @@ function resolveTurn(playerAction) {
   turn += 1;
   checkWinner();
   renderBattle();
+}
+
+function markActionUsed(card, action) {
+  if (!card || action === "skip") {
+    return;
+  }
+
+  if (!card.usedActions) {
+    card.usedActions = new Set();
+  }
+
+  card.usedActions.add(action);
+}
+
+function resolveActionPair(playerAction, opponentAction) {
+  const messages = [
+    `${currentPlayerName()}: ${actionLabels[playerAction]} / ${currentOpponentName()}: ${actionLabels[opponentAction]}`,
+  ];
+
+  player.charged = false;
+  cpu.charged = false;
+  markActionUsed(player, playerAction);
+  markActionUsed(cpu, opponentAction);
+
+  if (playerAction === "charge") {
+    player.charged = true;
+    messages.push(`${player.name}は力を溜めた。`);
+  }
+
+  if (opponentAction === "charge") {
+    cpu.charged = true;
+    messages.push(`${cpu.name}は力を溜めた。`);
+  }
+
+  if (attackHits(playerAction)) {
+    messages.push(resolveAttack(player, cpu, playerAction, opponentAction));
+  }
+
+  if (cpu.currentHp > 0 && attackHits(opponentAction)) {
+    messages.push(resolveAttack(cpu, player, opponentAction, playerAction));
+  }
+
+  player.currentHp = Math.max(0, player.currentHp);
+  cpu.currentHp = Math.max(0, cpu.currentHp);
+  return messages;
+}
+
+function resolveShortTurn(playerAction) {
+  if (battleMode === "twoPlayer" && !pendingShortPlayerAction) {
+    pendingShortPlayerAction = playerAction;
+    statusText.textContent = "エマの行動を選んでください。";
+    renderActions();
+    return;
+  }
+
+  const opponentAction =
+    battleMode === "twoPlayer" ? playerAction : chooseCpuAction();
+  const firstAction =
+    battleMode === "twoPlayer" ? pendingShortPlayerAction : playerAction;
+  pendingShortPlayerAction = "";
+
+  const messages = resolveActionPair(firstAction, opponentAction);
+  shortRoundTurn += 1;
+  turn += 1;
+
+  if (player.currentHp <= 0 || cpu.currentHp <= 0 || shortRoundTurn > shortCardTurnLimit) {
+    messages.push(finishShortRound());
+  }
+
+  addLog(messages.filter(Boolean));
+  renderBattle();
+}
+
+function finishShortRound() {
+  let result = "";
+
+  if (player.currentHp > cpu.currentHp) {
+    shortPlayerWins += 1;
+    result = `${player.name}の勝ち。ソウスケ ${shortPlayerWins}勝 / ${currentOpponentName()} ${shortOpponentWins}勝`;
+  } else if (cpu.currentHp > player.currentHp) {
+    shortOpponentWins += 1;
+    result = `${cpu.name}の勝ち。ソウスケ ${shortPlayerWins}勝 / ${currentOpponentName()} ${shortOpponentWins}勝`;
+  } else {
+    result = `${player.name}と${cpu.name}は引き分け。`;
+  }
+
+  shortRoundIndex += 1;
+
+  if (shortRoundIndex >= shortBattleSize) {
+    battleOver = true;
+    if (shortPlayerWins > shortOpponentWins) {
+      statusText.textContent = "ソウスケの勝ち！";
+      return `${result} 3カード対戦はソウスケの勝ち！`;
+    }
+
+    if (shortOpponentWins > shortPlayerWins) {
+      statusText.textContent = `${currentOpponentName()}の勝ち！`;
+      return `${result} 3カード対戦は${currentOpponentName()}の勝ち！`;
+    }
+
+    statusText.textContent = "引き分け！";
+    return `${result} 3カード対戦は引き分け！`;
+  }
+
+  player = makeBattleCard(playerBattleDeck[shortRoundIndex]);
+  cpu = makeBattleCard(opponentBattleDeck[shortRoundIndex]);
+  shortRoundTurn = 1;
+  turn = 1;
+  return `${result} 次は${player.name} vs ${cpu.name}。`;
 }
 
 function advancePlayerCard() {
@@ -767,12 +918,26 @@ function renderCard(target, card) {
 
 function renderActions() {
   actionButtons.innerHTML = "";
+  const actingCard = isShortBattle && battleMode === "twoPlayer" && pendingShortPlayerAction ? cpu : player;
+  const actorName = isShortBattle && battleMode === "twoPlayer" && pendingShortPlayerAction ? "エマ" : currentPlayerName();
+  const actions = availableActions(actingCard);
 
-  for (const action of availableActions(player)) {
+  if (actions.length === 0 && isShortBattle) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "skill-button";
-    button.textContent = actionLabels[action];
+    button.textContent = `${actorName}: 行動なし`;
+    button.disabled = battleOver;
+    button.addEventListener("click", () => resolveTurn("skip"));
+    actionButtons.append(button);
+    return;
+  }
+
+  for (const action of actions) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "skill-button";
+    button.textContent = isShortBattle && battleMode === "twoPlayer" ? `${actorName}: ${actionLabels[action]}` : actionLabels[action];
 
     if (action === "defense" || action === "counter") {
       button.classList.add("secondary");
@@ -789,10 +954,13 @@ function renderActions() {
 }
 
 function renderBattle() {
-  turnLabel.textContent = `${turn}ターン目`;
+  battleScreen.classList.toggle("short-battle-board", isShortBattle);
+  turnLabel.textContent = isShortBattle ? `${shortRoundIndex + 1}戦目 ${shortRoundTurn}/${shortCardTurnLimit}` : `${turn}ターン目`;
 
   if (!battleOver) {
-    statusText.textContent = `${currentPlayerName()}のカード ${playerActiveIndex + 1}/${playerBattleDeck.length}、${currentOpponentName()}のカード ${opponentActiveIndex + 1}/${opponentBattleDeck.length}`;
+    statusText.textContent = isShortBattle
+      ? `ソウスケ ${shortPlayerWins}勝 / ${currentOpponentName()} ${shortOpponentWins}勝`
+      : `${currentPlayerName()}のカード ${playerActiveIndex + 1}/${playerBattleDeck.length}、${currentOpponentName()}のカード ${opponentActiveIndex + 1}/${opponentBattleDeck.length}`;
   }
 
   renderCard(playerCard, player);
@@ -819,6 +987,9 @@ function buildCpuDeck() {
 }
 
 function startBattle() {
+  isShortBattle = false;
+  battleScreen.classList.remove("short-battle-board");
+
   if (playerDeck.length === 0) {
     teamSummary.textContent = "自分のデッキにカードを入れてください。";
     return;
@@ -1014,13 +1185,24 @@ function renderTraining() {
 }
 
 function resetGame() {
-  teamScreen.classList.remove("is-hidden");
-  selectScreen.classList.remove("is-hidden");
+  if (isShortBattle) {
+    shortSetupScreen.classList.remove("is-hidden");
+    teamScreen.classList.add("is-hidden");
+    selectScreen.classList.add("is-hidden");
+    trainingScreen.classList.add("is-hidden");
+  } else {
+    shortSetupScreen.classList.add("is-hidden");
+    teamScreen.classList.remove("is-hidden");
+    selectScreen.classList.remove("is-hidden");
+  }
+
   battleScreen.classList.add("is-hidden");
+  battleScreen.classList.remove("short-battle-board");
   player = null;
   cpu = null;
   turn = 1;
   battleOver = false;
+  pendingShortPlayerAction = "";
   battleLog.innerHTML = "";
   statusText.textContent = "スキルを選んでね";
 }
@@ -1031,6 +1213,8 @@ function loadBattleExport(file) {
   reader.addEventListener("load", () => {
     try {
       const result = parseBattleExport(String(reader.result));
+      isShortBattle = false;
+      shortSetupScreen.classList.add("is-hidden");
       ownedCards = result.cards;
       ownerName = result.owner.name ?? activeAccount().name;
       teams = [createTeam("チーム1")];
@@ -1064,25 +1248,116 @@ function makeDeckFromCards(cards) {
   }));
 }
 
+function shortCardOptions(selectedId = "") {
+  return ownedCards
+    .map((card) => `<option value="${card.id}" ${card.id === selectedId ? "selected" : ""}>${card.name}</option>`)
+    .join("");
+}
+
+function renderShortOrderControls() {
+  const ids = ownedCards.map((card) => card.id);
+  const labels = ["先鋒", "中堅", "大将"];
+  shortPlayerOrder.innerHTML = labels
+    .map((label, index) => `
+      <label>${label}
+        <select data-short-order="player">${shortCardOptions(ids[index])}</select>
+      </label>
+    `)
+    .join("");
+  shortOpponentOrder.innerHTML = labels
+    .map((label, index) => `
+      <label>${label}
+        <select data-short-order="opponent">${shortCardOptions(ids[index])}</select>
+      </label>
+    `)
+    .join("");
+  renderShortSetup();
+}
+
+function renderShortSetup() {
+  shortOpponentOrderPanel.classList.toggle("is-hidden", shortBattleMode !== "twoPlayer");
+  shortSetupSummary.textContent =
+    shortBattleMode === "twoPlayer"
+      ? "ソウスケとエマが、同じ3体から出す順番だけ選びます。"
+      : "ソウスケの出す順番を選びます。CPも同じ3体で勝負します。";
+}
+
+function selectedShortCards(target) {
+  const selects = [...document.querySelectorAll(`[data-short-order="${target}"]`)];
+  const ids = selects.map((select) => select.value);
+
+  if (new Set(ids).size !== shortBattleSize) {
+    return null;
+  }
+
+  return ids.map((id) => cardById(id));
+}
+
 function startShortBattle() {
   ownedCards = shortBattleCards.map(normalizeCard);
   ownerName = "ショートバトル";
+  isShortBattle = true;
   battleMode = "cpu";
+  shortBattleMode = "cpu";
 
   for (const input of battleModeInputs) {
     input.checked = input.value === "cpu";
   }
 
+  for (const input of shortBattleModeInputs) {
+    input.checked = input.value === "cpu";
+  }
+
   teams = [createTeam("ショートバトル")];
   activeTeamId = teams[0].id;
-  teams[0].deck = makeDeckFromCards(ownedCards);
+  teams[0].deck = [];
   syncPlayerDeck();
   playerTwoDeck = [];
   selectTitle.textContent = "ショートバトルの3体";
-  poolSummary.textContent = "ミズラビ・モリネ・ファイケルだけで、すぐ遊べます。";
+  poolSummary.textContent = "ミズラビ・モリネ・ファイケルだけで、順番を選んで遊べます。";
   resetGame();
+  shortSetupScreen.classList.remove("is-hidden");
+  teamScreen.classList.add("is-hidden");
+  selectScreen.classList.add("is-hidden");
+  trainingScreen.classList.add("is-hidden");
+  for (const button of tabButtons) {
+    button.classList.remove("is-active");
+  }
+  renderShortOrderControls();
   renderAll();
-  startBattle();
+}
+
+function startPreparedShortBattle() {
+  const playerCards = selectedShortCards("player");
+  const opponentCards =
+    shortBattleMode === "twoPlayer" ? selectedShortCards("opponent") : [...ownedCards].reverse();
+
+  if (!playerCards || !opponentCards) {
+    shortSetupSummary.textContent = "同じカードを2回選ばず、3体を1回ずつ選んでください。";
+    return;
+  }
+
+  battleMode = shortBattleMode;
+  playerDeck = makeDeckFromCards(playerCards);
+  playerTwoDeck = makeDeckFromCards(opponentCards);
+  playerBattleDeck = playerDeck.map((entry) => ({ ...entry }));
+  opponentBattleDeck = playerTwoDeck.map((entry) => ({ ...entry }));
+  playerActiveIndex = 0;
+  opponentActiveIndex = 0;
+  shortRoundIndex = 0;
+  shortRoundTurn = 1;
+  shortPlayerWins = 0;
+  shortOpponentWins = 0;
+  pendingShortPlayerAction = "";
+  player = makeBattleCard(playerBattleDeck[0]);
+  cpu = makeBattleCard(opponentBattleDeck[0]);
+  turn = 1;
+  battleOver = false;
+  battleLog.innerHTML = "";
+  shortSetupScreen.classList.add("is-hidden");
+  battleScreen.classList.remove("is-hidden");
+  addLog([`ショートバトル開始！ ${player.name} vs ${cpu.name}`]);
+  renderBattle();
 }
 
 jsonInput.addEventListener("change", (event) => {
@@ -1095,8 +1370,26 @@ jsonInput.addEventListener("change", (event) => {
 
 shortBattleButton.addEventListener("click", startShortBattle);
 
+for (const input of shortBattleModeInputs) {
+  input.addEventListener("change", () => {
+    shortBattleMode = input.value;
+    renderShortSetup();
+  });
+}
+
+cancelShortBattleButton.addEventListener("click", () => {
+  isShortBattle = false;
+  shortSetupScreen.classList.add("is-hidden");
+  resetGame();
+  renderAll();
+});
+
+startShortPreparedButton.addEventListener("click", startPreparedShortBattle);
+
 for (const button of accountButtons) {
   button.addEventListener("click", () => {
+    isShortBattle = false;
+    shortSetupScreen.classList.add("is-hidden");
     activeAccountId = button.dataset.accountId;
     localStorage.setItem(activeAccountStorageKey, activeAccountId);
     teams = [createTeam("チーム1")];

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Family-card-game by SSK</title>
-    <link rel="stylesheet" href="style.css?v=20260504-3">
+    <link rel="stylesheet" href="style.css?v=20260504-4">
   </head>
   <body>
     <main class="app">
@@ -38,6 +38,33 @@
         <div class="account-buttons">
           <button class="account-button is-active" type="button" data-account-id="sousuke">ソウスケ</button>
           <button class="account-button" type="button" data-account-id="emma">エマ</button>
+        </div>
+      </section>
+
+      <section id="shortSetupScreen" class="short-setup-screen is-hidden">
+        <div class="team-head">
+          <div>
+            <h2>ショートバトル準備</h2>
+            <p id="shortSetupSummary">3体を出す順番だけ選んで、すぐ勝負できます。</p>
+          </div>
+          <div class="mode-control" role="radiogroup" aria-label="ショートバトルの対戦方法">
+            <label><input name="shortBattleMode" type="radio" value="cpu" checked> CP対戦</label>
+            <label><input name="shortBattleMode" type="radio" value="twoPlayer"> 二人対戦</label>
+          </div>
+        </div>
+        <div class="short-order-grid">
+          <section class="deck-panel">
+            <h3>ソウスケの順番</h3>
+            <div id="shortPlayerOrder" class="order-controls"></div>
+          </section>
+          <section id="shortOpponentOrderPanel" class="deck-panel is-hidden">
+            <h3>エマの順番</h3>
+            <div id="shortOpponentOrder" class="order-controls"></div>
+          </section>
+        </div>
+        <div class="team-actions">
+          <button id="cancelShortBattleButton" class="plain-button" type="button">戻る</button>
+          <button id="startShortPreparedButton" class="start-button" type="button">この順番で勝負</button>
         </div>
       </section>
 
@@ -121,6 +148,6 @@
       </section>
     </main>
 
-    <script src="script.js?v=20260504-3"></script>
+    <script src="script.js?v=20260504-4"></script>
   </body>
 </html>
