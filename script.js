@@ -45,31 +45,37 @@ const moveTable = {
     normal: ["ひのこ", "火"],
     rare: ["ファイヤーボール", "炎"],
     super_rare: ["ウルトラファイヤー"],
+    ultra_rare: ["ボルケーノ・オーバードライブ"],
   },
   water: {
     normal: ["水鉄砲", "水をかける"],
     rare: ["バブルビーム", "うずまき"],
     super_rare: ["ハイプレッシャーウォーター"],
+    ultra_rare: ["ハイドロ・インフィニティ"],
   },
   plant: {
     normal: ["このは", "サイコリーフ"],
     rare: ["フュージョンリーフ", "エナジーボール"],
     super_rare: ["リーフストーム"],
+    ultra_rare: ["グリーン・オーバーフロー"],
   },
   electric: {
     normal: ["ビリビリ", "静電気"],
     rare: ["カミナリ", "感電ショッカー"],
     super_rare: ["サンダーハリケーン"],
+    ultra_rare: ["ライトニング・エクスキューション"],
   },
   star: {
     normal: ["星のかけら", "スターがん"],
     rare: ["ビッグスター", "流れ星"],
     super_rare: ["スターラッシュ"],
+    ultra_rare: ["ギャラクシー・リベレーション"],
   },
   "star-electric": {
     normal: ["星のかけら", "ビリビリ"],
     rare: ["ビッグスター", "カミナリ"],
     super_rare: ["スターラッシュ"],
+    ultra_rare: ["ギャラクシー・リベレーション"],
   },
 };
 
