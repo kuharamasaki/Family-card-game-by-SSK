@@ -43,8 +43,35 @@
         </details>
       </section>
 
+      <section id="teamScreen" class="team-screen">
+        <div class="team-head">
+          <div>
+            <h2>チーム編成</h2>
+            <p id="teamSummary">5枚まで選んで「いざ勝負」を押してください。</p>
+          </div>
+          <div class="mode-control" role="radiogroup" aria-label="対戦方法">
+            <label><input name="battleMode" type="radio" value="cpu" checked> CP対戦</label>
+            <label><input name="battleMode" type="radio" value="twoPlayer"> 二人対戦</label>
+          </div>
+        </div>
+        <div class="deck-grid">
+          <section class="deck-panel">
+            <h3>自分のデッキ</h3>
+            <ol id="playerDeckList" class="deck-list"></ol>
+          </section>
+          <section id="playerTwoDeckPanel" class="deck-panel is-hidden">
+            <h3>二人目のデッキ</h3>
+            <ol id="playerTwoDeckList" class="deck-list"></ol>
+          </section>
+        </div>
+        <div class="team-actions">
+          <button id="clearDeckButton" class="plain-button" type="button">デッキを空にする</button>
+          <button id="startBattleButton" class="start-button" type="button">いざ勝負</button>
+        </div>
+      </section>
+
       <section id="selectScreen" class="select-screen">
-        <h2 id="selectTitle">使用できるカード</h2>
+        <h2 id="selectTitle">チームに入れるカード</h2>
         <div id="cardChoices" class="choice-grid"></div>
       </section>
 

@@ -1,4 +1,5 @@
 const expectedFormat = "lumina-battle-export-v1";
+const maxDeckSize = 5;
 
 const elementAdvantage = {
   fire: "plant",
@@ -27,6 +28,39 @@ const elementColors = {
   "star-electric": "#7d5ac7",
 };
 
+const moveTable = {
+  fire: {
+    normal: ["ひのこ", "火"],
+    rare: ["ファイヤーボール", "炎"],
+    super_rare: ["ウルトラファイヤー"],
+  },
+  water: {
+    normal: ["水鉄砲", "水をかける"],
+    rare: ["バブルビーム", "うずまき"],
+    super_rare: ["ハイプレッシャーウォーター"],
+  },
+  plant: {
+    normal: ["このは", "サイコリーフ"],
+    rare: ["フュージョンリーフ", "エナジーボール"],
+    super_rare: ["リーフストーム"],
+  },
+  electric: {
+    normal: ["ビリビリ", "静電気"],
+    rare: ["カミナリ", "感電ショッカー"],
+    super_rare: ["サンダーハリケーン"],
+  },
+  star: {
+    normal: ["星のかけら", "スターがん"],
+    rare: ["ビッグスター", "流れ星"],
+    super_rare: ["スターラッシュ"],
+  },
+  "star-electric": {
+    normal: ["星のかけら", "ビリビリ"],
+    rare: ["ビッグスター", "カミナリ"],
+    super_rare: ["スターラッシュ"],
+  },
+};
+
 const actionLabels = {
   attack: "攻撃",
   defense: "防御",
@@ -47,9 +81,17 @@ const defaultBaselines = {
 };
 
 const baselineStorageKey = "luminaBattleBaselines";
+const deckStorageKey = "luminaBattleDecks";
 
 let ownedCards = [];
 let ownerName = "";
+let playerDeck = [];
+let playerTwoDeck = [];
+let battleMode = "cpu";
+let playerBattleDeck = [];
+let opponentBattleDeck = [];
+let playerActiveIndex = 0;
+let opponentActiveIndex = 0;
 let player = null;
 let cpu = null;
 let turn = 1;
@@ -57,11 +99,19 @@ let battleOver = false;
 
 const jsonInput = document.querySelector("#jsonInput");
 const baselineInputs = document.querySelectorAll("[data-balance-key]");
+const battleModeInputs = document.querySelectorAll("[name='battleMode']");
 const poolSummary = document.querySelector("#poolSummary");
+const teamSummary = document.querySelector("#teamSummary");
 const selectTitle = document.querySelector("#selectTitle");
 const selectScreen = document.querySelector("#selectScreen");
+const teamScreen = document.querySelector("#teamScreen");
 const battleScreen = document.querySelector("#battleScreen");
 const cardChoices = document.querySelector("#cardChoices");
+const playerDeckList = document.querySelector("#playerDeckList");
+const playerTwoDeckPanel = document.querySelector("#playerTwoDeckPanel");
+const playerTwoDeckList = document.querySelector("#playerTwoDeckList");
+const clearDeckButton = document.querySelector("#clearDeckButton");
+const startBattleButton = document.querySelector("#startBattleButton");
 const playerCard = document.querySelector("#playerCard");
 const cpuCard = document.querySelector("#cpuCard");
 const actionButtons = document.querySelector("#actionButtons");
@@ -69,6 +119,18 @@ const battleLog = document.querySelector("#battleLog");
 const turnLabel = document.querySelector("#turnLabel");
 const statusText = document.querySelector("#statusText");
 const resetButton = document.querySelector("#resetButton");
+
+function rarityKey(rarity) {
+  if (rarity === "superRare") {
+    return "super_rare";
+  }
+
+  if (rarity === "rare" || rarity === "super_rare") {
+    return rarity;
+  }
+
+  return "normal";
+}
 
 function normalizeCard(card) {
   const stats = card.stats ?? {};
@@ -86,7 +148,7 @@ function normalizeCard(card) {
     attribute: card.attribute ?? "unknown",
     attributeLabel:
       card.attributeLabel ?? fallbackElementLabels[card.attribute] ?? card.attribute ?? "属性なし",
-    rarity: card.rarity ?? "unknown",
+    rarity: rarityKey(card.rarity),
     rarityLabel: card.rarityLabel ?? card.rarity ?? "レア度なし",
     image: card.image ?? "",
     copies,
@@ -137,18 +199,14 @@ function setupBaselineInputs() {
     input.value = saved[input.dataset.balanceKey] ?? defaultBaselines[input.dataset.balanceKey];
     input.addEventListener("input", () => {
       saveBaselines();
-      renderChoices();
-
-      if (player && cpu) {
-        renderBattle();
-      }
+      renderAll();
     });
   }
 }
 
 function rarityBaselineKey(card) {
   if (card.evolvesFrom) {
-    if (card.rarity === "super_rare" || card.rarity === "superRare") {
+    if (card.rarity === "super_rare") {
       return "superRareEvolution";
     }
 
@@ -159,15 +217,7 @@ function rarityBaselineKey(card) {
     return "normalEvolution";
   }
 
-  if (card.rarity === "super_rare" || card.rarity === "superRare") {
-    return "super_rare";
-  }
-
-  if (card.rarity === "rare") {
-    return "rare";
-  }
-
-  return "normal";
+  return card.rarity;
 }
 
 function statTotal(card) {
@@ -177,7 +227,7 @@ function statTotal(card) {
 function balanceCheck(card) {
   const baselines = getBaselines();
   const key = rarityBaselineKey(card);
-  const baseline = baselines[key];
+  const baseline = baselines[key] ?? baselines.normal;
   const tolerance = baselines.evolutionLevel;
   const total = statTotal(card);
   const diff = total - baseline;
@@ -224,11 +274,116 @@ function parseBattleExport(rawText) {
   };
 }
 
-function makeBattleCard(card) {
+function getMoves(card) {
+  const moves = moveTable[card.attribute]?.[card.rarity];
+  return moves?.length ? moves : ["たいあたり"];
+}
+
+function cardById(id) {
+  return ownedCards.find((card) => card.id === id);
+}
+
+function deckCount(deck, cardId) {
+  return deck.filter((entry) => entry.card.id === cardId).length;
+}
+
+function totalDeckCount(cardId) {
+  return deckCount(playerDeck, cardId) + deckCount(playerTwoDeck, cardId);
+}
+
+function canAddToDeck(card, targetDeck) {
+  if (targetDeck.length >= maxDeckSize) {
+    return false;
+  }
+
+  if (battleMode === "twoPlayer") {
+    return totalDeckCount(card.id) < card.copies;
+  }
+
+  return deckCount(playerDeck, card.id) < card.copies;
+}
+
+function addToDeck(cardId, move, target = "player") {
+  const card = cardById(cardId);
+  const deck = target === "playerTwo" ? playerTwoDeck : playerDeck;
+
+  if (!card || !canAddToDeck(card, deck)) {
+    return;
+  }
+
+  deck.push({
+    uid: crypto.randomUUID(),
+    card,
+    move,
+  });
+
+  saveDecks();
+  renderAll();
+}
+
+function removeFromDeck(uid, target = "player") {
+  const deck = target === "playerTwo" ? playerTwoDeck : playerDeck;
+  const index = deck.findIndex((entry) => entry.uid === uid);
+
+  if (index >= 0) {
+    deck.splice(index, 1);
+    saveDecks();
+    renderAll();
+  }
+}
+
+function saveDecks() {
+  const payload = {
+    ownerName,
+    playerDeck: playerDeck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
+    playerTwoDeck: playerTwoDeck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
+  };
+  localStorage.setItem(deckStorageKey, JSON.stringify(payload));
+}
+
+function restoreDecks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(deckStorageKey) ?? "{}");
+
+    if (saved.ownerName !== ownerName) {
+      playerDeck = [];
+      playerTwoDeck = [];
+      return;
+    }
+
+    playerDeck = restoreDeck(saved.playerDeck);
+    playerTwoDeck = restoreDeck(saved.playerTwoDeck);
+  } catch {
+    playerDeck = [];
+    playerTwoDeck = [];
+  }
+}
+
+function restoreDeck(savedDeck = []) {
+  const restored = [];
+
+  for (const item of savedDeck) {
+    const card = cardById(item.cardId);
+    const move = getMoves(card ?? {})[0];
+
+    if (card && restored.filter((entry) => entry.card.id === card.id).length < card.copies) {
+      restored.push({
+        uid: crypto.randomUUID(),
+        card,
+        move: item.move ?? move,
+      });
+    }
+  }
+
+  return restored.slice(0, maxDeckSize);
+}
+
+function makeBattleCard(entry) {
   return {
-    ...card,
-    maxHp: card.hp,
-    currentHp: card.hp,
+    ...entry.card,
+    move: entry.move,
+    maxHp: entry.card.hp,
+    currentHp: entry.card.hp,
     charged: false,
   };
 }
@@ -298,6 +453,7 @@ function chooseCpuAction() {
 
 function resolveAttack(attacker, defender, attackerAction, defenderAction) {
   const damage = actionDamage(attacker, defender, attackerAction);
+  const moveName = attacker.move ?? actionLabels[attackerAction];
 
   if (defenderAction === "counter") {
     attacker.currentHp -= damage;
@@ -308,7 +464,15 @@ function resolveAttack(attacker, defender, attackerAction, defenderAction) {
   const reduction = defenseReduction(defender, defenderAction, attackerAction);
   const finalDamage = Math.max(1, damage - reduction);
   defender.currentHp -= finalDamage;
-  return `${attacker.name}の${actionLabels[attackerAction]}！ ${defender.name}に${finalDamage}ダメージ。`;
+  return `${attacker.name}の${moveName}！ ${defender.name}に${finalDamage}ダメージ。`;
+}
+
+function currentPlayerName() {
+  return battleMode === "twoPlayer" ? "1P" : "あなた";
+}
+
+function currentOpponentName() {
+  return battleMode === "twoPlayer" ? "2P" : "CPU";
 }
 
 function resolveTurn(playerAction) {
@@ -318,7 +482,7 @@ function resolveTurn(playerAction) {
 
   const cpuAction = chooseCpuAction();
   const messages = [
-    `あなた: ${actionLabels[playerAction]} / CPU: ${actionLabels[cpuAction]}`,
+    `${currentPlayerName()}: ${actionLabels[playerAction]} / ${currentOpponentName()}: ${actionLabels[cpuAction]}`,
   ];
 
   player.charged = false;
@@ -345,28 +509,61 @@ function resolveTurn(playerAction) {
   player.currentHp = Math.max(0, player.currentHp);
   cpu.currentHp = Math.max(0, cpu.currentHp);
 
-  addLog(messages);
+  if (player.currentHp <= 0) {
+    messages.push(advancePlayerCard());
+  }
+
+  if (cpu.currentHp <= 0) {
+    messages.push(advanceOpponentCard());
+  }
+
+  addLog(messages.filter(Boolean));
   turn += 1;
   checkWinner();
   renderBattle();
 }
 
+function advancePlayerCard() {
+  playerActiveIndex += 1;
+
+  if (playerActiveIndex >= playerBattleDeck.length) {
+    return "";
+  }
+
+  player = makeBattleCard(playerBattleDeck[playerActiveIndex]);
+  return `${currentPlayerName()}は次のカード、${player.name}を出した！`;
+}
+
+function advanceOpponentCard() {
+  opponentActiveIndex += 1;
+
+  if (opponentActiveIndex >= opponentBattleDeck.length) {
+    return "";
+  }
+
+  cpu = makeBattleCard(opponentBattleDeck[opponentActiveIndex]);
+  return `${currentOpponentName()}は次のカード、${cpu.name}を出した！`;
+}
+
 function checkWinner() {
-  if (player.currentHp > 0 && cpu.currentHp > 0) {
+  const playerLost = playerActiveIndex >= playerBattleDeck.length;
+  const opponentLost = opponentActiveIndex >= opponentBattleDeck.length;
+
+  if (!playerLost && !opponentLost) {
     return;
   }
 
   battleOver = true;
 
-  if (player.currentHp <= 0 && cpu.currentHp <= 0) {
+  if (playerLost && opponentLost) {
     statusText.textContent = "引き分け！";
     addLog(["引き分け！"]);
-  } else if (cpu.currentHp <= 0) {
-    statusText.textContent = "勝ち！";
-    addLog(["勝ち！"]);
+  } else if (opponentLost) {
+    statusText.textContent = `${currentPlayerName()}の勝ち！`;
+    addLog([`${currentPlayerName()}の勝ち！`]);
   } else {
-    statusText.textContent = "負け。もう一回チャレンジ！";
-    addLog(["負け。もう一回チャレンジ！"]);
+    statusText.textContent = `${currentOpponentName()}の勝ち！`;
+    addLog([`${currentOpponentName()}の勝ち！`]);
   }
 }
 
@@ -412,7 +609,7 @@ function renderCard(target, card) {
     <span class="element-tag">${card.attributeLabel}</span>
     <div class="meta-row">
       <span class="meta-pill">${card.rarityLabel}</span>
-      <span class="meta-pill">所持: ${card.copies}枚</span>
+      <span class="meta-pill">技: ${card.move ?? "なし"}</span>
       ${evolutionHtml(card)}
     </div>
     <div class="stats">
@@ -457,9 +654,7 @@ function renderBattle() {
   turnLabel.textContent = `${turn}ターン目`;
 
   if (!battleOver) {
-    statusText.textContent = player.charged
-      ? "強攻撃か貫通攻撃も使えるよ"
-      : "スキルを選んでね";
+    statusText.textContent = `${currentPlayerName()}のカード ${playerActiveIndex + 1}/${playerBattleDeck.length}、${currentOpponentName()}のカード ${opponentActiveIndex + 1}/${opponentBattleDeck.length}`;
   }
 
   renderCard(playerCard, player);
@@ -467,23 +662,87 @@ function renderBattle() {
   renderActions();
 }
 
-function startBattle(selectedCard) {
-  if (ownedCards.length < 2) {
-    poolSummary.textContent = "バトルにはカードが2種類以上必要です。";
+function buildCpuDeck() {
+  const result = [];
+  const usedCounts = new Map();
+
+  for (const entry of playerDeck) {
+    const candidates = ownedCards.filter((card) => {
+      const used = usedCounts.get(card.id) ?? 0;
+      return card.rarity === entry.card.rarity && used < card.copies;
+    });
+    const pool = candidates.length ? candidates : ownedCards;
+    const card = pool[Math.floor(Math.random() * pool.length)];
+    usedCounts.set(card.id, (usedCounts.get(card.id) ?? 0) + 1);
+    result.push({ uid: crypto.randomUUID(), card, move: getMoves(card)[0] });
+  }
+
+  return result;
+}
+
+function startBattle() {
+  if (playerDeck.length === 0) {
+    teamSummary.textContent = "自分のデッキにカードを入れてください。";
     return;
   }
 
-  player = makeBattleCard(selectedCard);
-  const cpuChoices = ownedCards.filter((card) => card.id !== selectedCard.id);
-  cpu = makeBattleCard(cpuChoices[Math.floor(Math.random() * cpuChoices.length)]);
+  if (battleMode === "twoPlayer" && playerTwoDeck.length === 0) {
+    teamSummary.textContent = "二人目のデッキにカードを入れてください。";
+    return;
+  }
+
+  playerBattleDeck = playerDeck.map((entry) => ({ ...entry }));
+  opponentBattleDeck =
+    battleMode === "cpu" ? buildCpuDeck() : playerTwoDeck.map((entry) => ({ ...entry }));
+  playerActiveIndex = 0;
+  opponentActiveIndex = 0;
+  player = makeBattleCard(playerBattleDeck[0]);
+  cpu = makeBattleCard(opponentBattleDeck[0]);
   turn = 1;
   battleOver = false;
   battleLog.innerHTML = "";
 
+  teamScreen.classList.add("is-hidden");
   selectScreen.classList.add("is-hidden");
   battleScreen.classList.remove("is-hidden");
-  addLog([`あなたは${player.name}、CPUは${cpu.name}を選んだ！`]);
+  addLog([`${currentPlayerName()}は${player.name}、${currentOpponentName()}は${cpu.name}で勝負開始！`]);
   renderBattle();
+}
+
+function moveOptionsHtml(card) {
+  return getMoves(card)
+    .map((move) => `<option value="${move}">${move}</option>`)
+    .join("");
+}
+
+function renderDeckList(deck, target, targetName) {
+  target.innerHTML = "";
+
+  if (deck.length === 0) {
+    target.innerHTML = `<li>まだカードがありません。</li>`;
+    return;
+  }
+
+  for (const entry of deck) {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      ${entry.card.name}
+      <small>${entry.card.rarityLabel} / ${entry.card.attributeLabel} / 技: ${entry.move}</small>
+      <button class="plain-button" type="button">外す</button>
+    `;
+    item.querySelector("button").addEventListener("click", () => removeFromDeck(entry.uid, targetName));
+    target.append(item);
+  }
+}
+
+function renderDecks() {
+  playerTwoDeckPanel.classList.toggle("is-hidden", battleMode !== "twoPlayer");
+  renderDeckList(playerDeck, playerDeckList, "player");
+  renderDeckList(playerTwoDeck, playerTwoDeckList, "playerTwo");
+
+  const second = battleMode === "twoPlayer" ? ` / 2P ${playerTwoDeck.length}/${maxDeckSize}` : "";
+  teamSummary.textContent = `1P ${playerDeck.length}/${maxDeckSize}${second}`;
+  startBattleButton.disabled = playerDeck.length === 0 || (battleMode === "twoPlayer" && playerTwoDeck.length === 0);
 }
 
 function renderChoices() {
@@ -492,15 +751,15 @@ function renderChoices() {
   if (ownedCards.length === 0) {
     cardChoices.innerHTML =
       `<p class="empty-message">まだカードJSONが読み込まれていません。</p>`;
+    renderDecks();
     return;
   }
 
   for (const card of ownedCards) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "choice-button";
-    button.style.setProperty("--element-color", elementColors[card.attribute] ?? "#24745a");
-    button.innerHTML = `
+    const article = document.createElement("article");
+    article.className = "choice-card";
+    article.style.setProperty("--element-color", elementColors[card.attribute] ?? "#24745a");
+    article.innerHTML = `
       ${imageHtml(card, "choice-art")}
       <h3 class="card-name">${card.name}</h3>
       <span class="element-tag">${card.attributeLabel}</span>
@@ -516,13 +775,45 @@ function renderChoices() {
         <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
       </div>
       ${balanceHtml(card)}
+      <div class="card-controls">
+        <select class="move-select" aria-label="${card.name}の技">${moveOptionsHtml(card)}</select>
+        <button class="add-button" type="button">1Pに入れる</button>
+      </div>
+      <div class="card-controls two-player-control">
+        <select class="move-select" aria-label="${card.name}の2P技">${moveOptionsHtml(card)}</select>
+        <button class="add-button" type="button">2Pに入れる</button>
+      </div>
     `;
-    button.addEventListener("click", () => startBattle(card));
-    cardChoices.append(button);
+
+    const controls = article.querySelectorAll(".card-controls");
+    const playerButton = controls[0].querySelector("button");
+    const playerMove = controls[0].querySelector("select");
+    const playerTwoButton = controls[1].querySelector("button");
+    const playerTwoMove = controls[1].querySelector("select");
+
+    playerButton.disabled = !canAddToDeck(card, playerDeck);
+    playerButton.addEventListener("click", () => addToDeck(card.id, playerMove.value, "player"));
+
+    controls[1].classList.toggle("is-hidden", battleMode !== "twoPlayer");
+    playerTwoButton.disabled = !canAddToDeck(card, playerTwoDeck);
+    playerTwoButton.addEventListener("click", () => addToDeck(card.id, playerTwoMove.value, "playerTwo"));
+
+    cardChoices.append(article);
+  }
+
+  renderDecks();
+}
+
+function renderAll() {
+  renderChoices();
+
+  if (player && cpu && !battleOver) {
+    renderBattle();
   }
 }
 
 function resetGame() {
+  teamScreen.classList.remove("is-hidden");
   selectScreen.classList.remove("is-hidden");
   battleScreen.classList.add("is-hidden");
   player = null;
@@ -541,15 +832,18 @@ function loadBattleExport(file) {
       const result = parseBattleExport(String(reader.result));
       ownedCards = result.cards;
       ownerName = result.owner.name ?? "名前なし";
-      selectTitle.textContent = `${ownerName}のカードプール`;
+      selectTitle.textContent = `${ownerName}のチーム編成`;
       poolSummary.textContent =
         `${ownerName}専用: ${ownedCards.length}種類 / 合計${result.totalCards}枚`;
+      restoreDecks();
       resetGame();
-      renderChoices();
+      renderAll();
     } catch (error) {
       ownedCards = [];
+      playerDeck = [];
+      playerTwoDeck = [];
       poolSummary.textContent = error.message;
-      renderChoices();
+      renderAll();
     }
   });
 
@@ -564,6 +858,21 @@ jsonInput.addEventListener("change", (event) => {
   }
 });
 
+for (const input of battleModeInputs) {
+  input.addEventListener("change", () => {
+    battleMode = input.value;
+    renderAll();
+  });
+}
+
+clearDeckButton.addEventListener("click", () => {
+  playerDeck = [];
+  playerTwoDeck = [];
+  saveDecks();
+  renderAll();
+});
+
+startBattleButton.addEventListener("click", startBattle);
 resetButton.addEventListener("click", resetGame);
 setupBaselineInputs();
-renderChoices();
+renderAll();
