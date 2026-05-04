@@ -228,14 +228,35 @@ function normalizeImagePath(image) {
     return "";
   }
 
-  const value = String(image);
+  const value = String(image).trim();
 
   if (value.startsWith("data:") || value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
 
+  if (value.startsWith("/cards/")) {
+    return value;
+  }
+
+  if (value.startsWith("cards/")) {
+    return `/${value}`;
+  }
+
   const fileName = value.split(/[\\/]/).pop();
-  return `assets/cards/${fileName}`;
+  return `/cards/${fileName}`;
+}
+
+function imageSrc(image) {
+  if (!image) {
+    return "";
+  }
+
+  if (image.startsWith("/cards/") && window.location.hostname.endsWith("github.io")) {
+    const basePath = window.location.pathname.split("/").filter(Boolean)[0];
+    return basePath ? `/${basePath}${image}` : image;
+  }
+
+  return image;
 }
 
 function parseBattleExport(rawText) {
@@ -610,7 +631,7 @@ function imageHtml(card, extraClass = "") {
     return `<div class="card-art missing-art ${extraClass}">画像なし</div>`;
   }
 
-  return `<img class="card-art ${extraClass}" src="${card.image}" alt="${card.name}のカード画像">`;
+  return `<img class="card-art ${extraClass}" src="${imageSrc(card.image)}" alt="${card.name}のカード画像">`;
 }
 
 function rarityBaselineKey(card) {
