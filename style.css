@@ -85,6 +85,7 @@ h2 {
 }
 
 .import-screen,
+.account-screen,
 .team-screen,
 .training-screen,
 .select-screen,
@@ -98,6 +99,7 @@ h2 {
 }
 
 .import-screen,
+.account-screen,
 .team-screen,
 .training-screen,
 .select-screen {
@@ -110,6 +112,42 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.account-screen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+#accountSummary {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.account-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.account-button.is-active {
+  background: var(--accent);
+  color: #fff;
 }
 
 .team-screen {
@@ -644,11 +682,13 @@ h2 {
   .training-grid,
   .training-layout,
   .actions,
-  .import-screen {
+  .import-screen,
+  .account-screen {
     grid-template-columns: 1fr;
   }
 
-  .import-screen {
+  .import-screen,
+  .account-screen {
     display: grid;
   }
 

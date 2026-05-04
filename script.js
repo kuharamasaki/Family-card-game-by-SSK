@@ -88,10 +88,16 @@ const actionLabels = {
   piercingAttack: "貫通攻撃",
 };
 
-const deckStorageKey = "luminaBattleDecks";
+const accounts = [
+  { id: "sousuke", name: "ソウスケ" },
+  { id: "emma", name: "エマ" },
+];
+const activeAccountStorageKey = "luminaBattleActiveAccount";
+const deckStorageKeyPrefix = "luminaBattleDecks";
 
 let ownedCards = [];
 let ownerName = "";
+let activeAccountId = localStorage.getItem(activeAccountStorageKey) ?? "sousuke";
 let teams = [];
 let activeTeamId = "";
 let playerDeck = [];
@@ -107,6 +113,8 @@ let turn = 1;
 let battleOver = false;
 
 const jsonInput = document.querySelector("#jsonInput");
+const accountButtons = document.querySelectorAll("[data-account-id]");
+const accountSummary = document.querySelector("#accountSummary");
 const tabButtons = document.querySelectorAll("[data-tab]");
 const appTabs = document.querySelectorAll(".app-tab");
 const battleModeInputs = document.querySelectorAll("[name='battleMode']");
@@ -196,6 +204,23 @@ function normalizeCard(card) {
     speed,
     evolvesFrom: card.evolvesFrom ?? null,
   };
+}
+
+function activeAccount() {
+  return accounts.find((account) => account.id === activeAccountId) ?? accounts[0];
+}
+
+function deckStorageKey() {
+  return `${deckStorageKeyPrefix}:${activeAccount().id}:${ownerName || "no-card-file"}`;
+}
+
+function renderAccount() {
+  const account = activeAccount();
+  accountSummary.textContent = `${account.name}のアカウントを使用中`;
+
+  for (const button of accountButtons) {
+    button.classList.toggle("is-active", button.dataset.accountId === account.id);
+  }
 }
 
 function normalizeImagePath(image) {
@@ -313,6 +338,8 @@ function removeFromDeck(uid, target = "player") {
 
 function saveDecks() {
   const payload = {
+    accountId: activeAccount().id,
+    accountName: activeAccount().name,
     ownerName,
     activeTeamId,
     teams: teams.map((team) => ({
@@ -322,14 +349,14 @@ function saveDecks() {
     })),
     playerTwoDeck: playerTwoDeck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
   };
-  localStorage.setItem(deckStorageKey, JSON.stringify(payload));
+  localStorage.setItem(deckStorageKey(), JSON.stringify(payload));
 }
 
 function restoreDecks() {
   try {
-    const saved = JSON.parse(localStorage.getItem(deckStorageKey) ?? "{}");
+    const saved = JSON.parse(localStorage.getItem(deckStorageKey()) ?? "{}");
 
-    if (saved.ownerName !== ownerName) {
+    if (saved.ownerName !== ownerName || saved.accountId !== activeAccount().id) {
       playerDeck = [];
       playerTwoDeck = [];
       return;
@@ -932,13 +959,13 @@ function loadBattleExport(file) {
     try {
       const result = parseBattleExport(String(reader.result));
       ownedCards = result.cards;
-      ownerName = result.owner.name ?? "名前なし";
+      ownerName = result.owner.name ?? activeAccount().name;
       teams = [createTeam("チーム1")];
       activeTeamId = teams[0].id;
       playerDeck = teams[0].deck;
-      selectTitle.textContent = `${ownerName}のチーム編成`;
+      selectTitle.textContent = `${activeAccount().name}のチーム編成`;
       poolSummary.textContent =
-        `${ownerName}専用: ${ownedCards.length}種類 / 合計${result.totalCards}枚`;
+        `${activeAccount().name}専用: ${ownedCards.length}種類 / 合計${result.totalCards}枚`;
       restoreDecks();
       resetGame();
       renderAll();
@@ -963,6 +990,21 @@ jsonInput.addEventListener("change", (event) => {
     loadBattleExport(file);
   }
 });
+
+for (const button of accountButtons) {
+  button.addEventListener("click", () => {
+    activeAccountId = button.dataset.accountId;
+    localStorage.setItem(activeAccountStorageKey, activeAccountId);
+    teams = [createTeam("チーム1")];
+    activeTeamId = teams[0].id;
+    playerDeck = teams[0].deck;
+    playerTwoDeck = [];
+    restoreDecks();
+    resetGame();
+    renderAccount();
+    renderAll();
+  });
+}
 
 for (const input of battleModeInputs) {
   input.addEventListener("change", () => {
@@ -1025,4 +1067,5 @@ clearDeckButton.addEventListener("click", () => {
 
 startBattleButton.addEventListener("click", startBattle);
 resetButton.addEventListener("click", resetGame);
+renderAccount();
 renderAll();
