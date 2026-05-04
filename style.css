@@ -83,7 +83,6 @@ h2 {
 }
 
 .import-screen,
-.settings-screen,
 .team-screen,
 .select-screen,
 .log-panel,
@@ -96,7 +95,6 @@ h2 {
 }
 
 .import-screen,
-.settings-screen,
 .team-screen,
 .select-screen {
   padding: 18px;
@@ -108,54 +106,6 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
-}
-
-.settings-screen {
-  display: grid;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.settings-screen summary {
-  cursor: pointer;
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.settings-screen p {
-  margin-bottom: 0;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.settings-grid label {
-  display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.settings-grid input {
-  width: 100%;
-  min-height: 42px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 10px;
-  color: var(--ink);
-  font: inherit;
-  font-weight: 800;
-}
-
-.settings-note {
-  margin-top: 12px;
 }
 
 .team-screen {
@@ -443,28 +393,6 @@ h2 {
   font-weight: 800;
 }
 
-.balance-note {
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f9fbf8;
-  font-weight: 800;
-  line-height: 1.45;
-}
-
-.balance-note.good {
-  color: #206c46;
-}
-
-.balance-note.warning {
-  color: #9a5b09;
-}
-
-.balance-note.danger {
-  color: #b5332a;
-}
-
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -595,8 +523,7 @@ h2 {
   .battle-board,
   .deck-grid,
   .actions,
-  .import-screen,
-  .settings-grid {
+  .import-screen {
     grid-template-columns: 1fr;
   }
 

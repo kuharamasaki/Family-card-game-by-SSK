@@ -70,17 +70,6 @@ const actionLabels = {
   piercingAttack: "貫通攻撃",
 };
 
-const defaultBaselines = {
-  normal: 150,
-  rare: 200,
-  super_rare: 300,
-  normalEvolution: 200,
-  rareEvolution: 250,
-  superRareEvolution: 350,
-  evolutionLevel: 35,
-};
-
-const baselineStorageKey = "luminaBattleBaselines";
 const deckStorageKey = "luminaBattleDecks";
 
 let ownedCards = [];
@@ -98,7 +87,6 @@ let turn = 1;
 let battleOver = false;
 
 const jsonInput = document.querySelector("#jsonInput");
-const baselineInputs = document.querySelectorAll("[data-balance-key]");
 const battleModeInputs = document.querySelectorAll("[name='battleMode']");
 const poolSummary = document.querySelector("#poolSummary");
 const teamSummary = document.querySelector("#teamSummary");
@@ -166,93 +154,6 @@ function normalizeCard(card) {
   };
 }
 
-function getSavedBaselines() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(baselineStorageKey) ?? "{}");
-    return Object.fromEntries(
-      Object.entries(defaultBaselines).map(([key, value]) => [key, Number(saved[key] ?? value)])
-    );
-  } catch {
-    return { ...defaultBaselines };
-  }
-}
-
-function getBaselines() {
-  const baselines = { ...defaultBaselines };
-
-  for (const input of baselineInputs) {
-    baselines[input.dataset.balanceKey] =
-      Number(input.value || defaultBaselines[input.dataset.balanceKey]);
-  }
-
-  return baselines;
-}
-
-function saveBaselines() {
-  localStorage.setItem(baselineStorageKey, JSON.stringify(getBaselines()));
-}
-
-function setupBaselineInputs() {
-  const saved = getSavedBaselines();
-
-  for (const input of baselineInputs) {
-    input.value = saved[input.dataset.balanceKey] ?? defaultBaselines[input.dataset.balanceKey];
-    input.addEventListener("input", () => {
-      saveBaselines();
-      renderAll();
-    });
-  }
-}
-
-function rarityBaselineKey(card) {
-  if (card.evolvesFrom) {
-    if (card.rarity === "super_rare") {
-      return "superRareEvolution";
-    }
-
-    if (card.rarity === "rare") {
-      return "rareEvolution";
-    }
-
-    return "normalEvolution";
-  }
-
-  return card.rarity;
-}
-
-function statTotal(card) {
-  return card.hp + card.attack + card.defense + card.speed;
-}
-
-function balanceCheck(card) {
-  const baselines = getBaselines();
-  const key = rarityBaselineKey(card);
-  const baseline = baselines[key] ?? baselines.normal;
-  const tolerance = baselines.evolutionLevel;
-  const total = statTotal(card);
-  const diff = total - baseline;
-  const cardType = card.evolvesFrom ? "進化体" : "通常";
-
-  if (Math.abs(diff) <= tolerance) {
-    return {
-      className: "good",
-      text: `基準OK: ${cardType} / 合計${total} / 基準${baseline}`,
-    };
-  }
-
-  if (diff > 0) {
-    return {
-      className: "danger",
-      text: `強すぎるかも: 合計${total} / 基準${baseline}。基準から+${diff}離れています。変更してください。`,
-    };
-  }
-
-  return {
-    className: "warning",
-    text: `弱すぎるかも: 合計${total} / 基準${baseline}。基準から${diff}離れています。変更してください。`,
-  };
-}
-
 function parseBattleExport(rawText) {
   const data = JSON.parse(rawText);
 
@@ -287,20 +188,12 @@ function deckCount(deck, cardId) {
   return deck.filter((entry) => entry.card.id === cardId).length;
 }
 
-function totalDeckCount(cardId) {
-  return deckCount(playerDeck, cardId) + deckCount(playerTwoDeck, cardId);
-}
-
 function canAddToDeck(card, targetDeck) {
   if (targetDeck.length >= maxDeckSize) {
     return false;
   }
 
-  if (battleMode === "twoPlayer") {
-    return totalDeckCount(card.id) < card.copies;
-  }
-
-  return deckCount(playerDeck, card.id) < card.copies;
+  return deckCount(targetDeck, card.id) < card.copies;
 }
 
 function addToDeck(cardId, move, target = "player") {
@@ -595,11 +488,6 @@ function evolutionHtml(card) {
   return `<span class="meta-pill">進化元: ${card.evolvesFrom.name}</span>`;
 }
 
-function balanceHtml(card) {
-  const check = balanceCheck(card);
-  return `<p class="balance-note ${check.className}">${check.text}</p>`;
-}
-
 function renderCard(target, card) {
   target.style.setProperty("--element-color", elementColors[card.attribute] ?? "#24745a");
   target.style.setProperty("--hp-percent", hpPercent(card));
@@ -618,7 +506,6 @@ function renderCard(target, card) {
       <div class="stat"><span>防御</span><strong>${card.defense}</strong></div>
       <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
     </div>
-    ${balanceHtml(card)}
     <div class="hp-wrap">
       <div class="hp-row"><span>HP</span><span>${card.currentHp}/${card.maxHp}</span></div>
       <div class="hp-bar"><div class="hp-fill"></div></div>
@@ -774,7 +661,6 @@ function renderChoices() {
         <div class="stat"><span>防御</span><strong>${card.defense}</strong></div>
         <div class="stat"><span>すばやさ</span><strong>${card.speed}</strong></div>
       </div>
-      ${balanceHtml(card)}
       <div class="card-controls">
         <select class="move-select" aria-label="${card.name}の技">${moveOptionsHtml(card)}</select>
         <button class="add-button" type="button">1Pに入れる</button>
@@ -874,5 +760,4 @@ clearDeckButton.addEventListener("click", () => {
 
 startBattleButton.addEventListener("click", startBattle);
 resetButton.addEventListener("click", resetGame);
-setupBaselineInputs();
 renderAll();
