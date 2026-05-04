@@ -1,6 +1,7 @@
 const expectedFormat = "lumina-battle-export-v1";
 const maxDeckSize = 5;
 const statKeys = ["hp", "attack", "defense"];
+const cardImageVersion = "20260504-2";
 
 const rarityBaselines = {
   normal: 150,
@@ -251,11 +252,17 @@ function imageSrc(image) {
     return "";
   }
 
+  let src = image;
+
   if (image.startsWith("/cards/")) {
-    return image.slice(1);
+    src = image.slice(1);
   }
 
-  return image;
+  if (src.startsWith("cards/")) {
+    return `${src}?v=${cardImageVersion}`;
+  }
+
+  return src;
 }
 
 function parseBattleExport(rawText) {
