@@ -138,7 +138,7 @@ function normalizeCard(card) {
       card.attributeLabel ?? fallbackElementLabels[card.attribute] ?? card.attribute ?? "属性なし",
     rarity: rarityKey(card.rarity),
     rarityLabel: card.rarityLabel ?? card.rarity ?? "レア度なし",
-    image: card.image ?? "",
+    image: normalizeImagePath(card.image),
     copies,
     stats: {
       power: attack,
@@ -154,11 +154,26 @@ function normalizeCard(card) {
   };
 }
 
+function normalizeImagePath(image) {
+  if (!image) {
+    return "";
+  }
+
+  const value = String(image);
+
+  if (value.startsWith("data:") || value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  const fileName = value.split(/[\\/]/).pop();
+  return `assets/cards/${fileName}`;
+}
+
 function parseBattleExport(rawText) {
   const data = JSON.parse(rawText);
 
   if (data.format !== expectedFormat) {
-    throw new Error(`対応していないJSONです: ${data.format ?? "formatなし"}`);
+    throw new Error(`対応していないカードファイルです: ${data.format ?? "formatなし"}`);
   }
 
   if (!Array.isArray(data.cards)) {
@@ -637,7 +652,7 @@ function renderChoices() {
 
   if (ownedCards.length === 0) {
     cardChoices.innerHTML =
-      `<p class="empty-message">まだカードJSONが読み込まれていません。</p>`;
+      `<p class="empty-message">まだカードが読み込まれていません。</p>`;
     renderDecks();
     return;
   }
