@@ -3,7 +3,7 @@ const maxDeckSize = 5;
 const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260509-1";
+const cardImageVersion = "20260509-2";
 
 const rarityBaselines = {
   normal: 150,
@@ -147,6 +147,7 @@ const deckStorageKeyPrefix = "luminaBattleDecks";
 let ownedCards = [];
 let ownerName = "";
 let cardPools = {};
+let twoPlayerDeckNames = { sousuke: "", emma: "" };
 let activeAccountId = localStorage.getItem(activeAccountStorageKey) ?? "sousuke";
 let teams = [];
 let activeTeamId = "";
@@ -195,8 +196,16 @@ const trainingSummary = document.querySelector("#trainingSummary");
 const battleScreen = document.querySelector("#battleScreen");
 const cardChoices = document.querySelector("#cardChoices");
 const teamSelect = document.querySelector("#teamSelect");
+const teamNameInput = document.querySelector("#teamNameInput");
 const newTeamButton = document.querySelector("#newTeamButton");
 const deleteTeamButton = document.querySelector("#deleteTeamButton");
+const twoPlayerSetup = document.querySelector("#twoPlayerSetup");
+const sousukeDeckNameInput = document.querySelector("#sousukeDeckNameInput");
+const emmaDeckNameInput = document.querySelector("#emmaDeckNameInput");
+const sousukeDeckNames = document.querySelector("#sousukeDeckNames");
+const emmaDeckNames = document.querySelector("#emmaDeckNames");
+const sousukeBattleOrder = document.querySelector("#sousukeBattleOrder");
+const emmaBattleOrder = document.querySelector("#emmaBattleOrder");
 const playerDeckList = document.querySelector("#playerDeckList");
 const playerTwoDeckPanel = document.querySelector("#playerTwoDeckPanel");
 const playerTwoDeckList = document.querySelector("#playerTwoDeckList");
@@ -277,7 +286,11 @@ function activeAccount() {
 }
 
 function deckStorageKey() {
-  return `${deckStorageKeyPrefix}:${activeAccount().id}:${ownerName || "no-card-file"}`;
+  return deckStorageKeyFor(activeAccount().id, ownerName);
+}
+
+function deckStorageKeyFor(accountId, poolOwnerName = "") {
+  return `${deckStorageKeyPrefix}:${accountId}:${poolOwnerName || "no-card-file"}`;
 }
 
 function renderAccount() {
@@ -294,6 +307,65 @@ function resetNormalDeckState() {
   activeTeamId = teams[0].id;
   playerDeck = teams[0].deck;
   playerTwoDeck = [];
+}
+
+function cardByIdFor(accountId, id) {
+  const pool = cardPools[accountId];
+  const cards = accountId === activeAccountId ? ownedCards : pool?.cards ?? [];
+  return cards.find((card) => card.id === id);
+}
+
+function restoreDeck(savedDeck = [], accountId = activeAccount().id) {
+  const restored = [];
+
+  for (const item of savedDeck) {
+    const card = cardByIdFor(accountId, item.cardId);
+    const move = getMoves(card ?? {})[0];
+
+    if (card && restored.filter((entry) => entry.card.id === card.id).length < card.copies) {
+      restored.push({
+        uid: crypto.randomUUID(),
+        card,
+        move: item.move ?? move,
+      });
+    }
+  }
+
+  return restored.slice(0, maxDeckSize);
+}
+
+function loadDeckStateForAccount(accountId) {
+  const account = accounts.find((item) => item.id === accountId) ?? accounts[0];
+  const pool = cardPools[accountId];
+  const fallbackTeam = { id: crypto.randomUUID(), name: "チーム1", deck: [] };
+
+  if (!pool) {
+    return { teams: [fallbackTeam], activeTeamId: fallbackTeam.id, playerTwoDeck: [] };
+  }
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(deckStorageKeyFor(accountId, pool.ownerName)) ?? "{}");
+
+    if (saved.ownerName !== pool.ownerName || saved.accountId !== account.id) {
+      return { teams: [fallbackTeam], activeTeamId: fallbackTeam.id, playerTwoDeck: [] };
+    }
+
+    const restoredTeams = Array.isArray(saved.teams) && saved.teams.length > 0
+      ? saved.teams.map((team, index) => ({
+          id: team.id ?? crypto.randomUUID(),
+          name: team.name ?? `チーム${index + 1}`,
+          deck: restoreDeck(team.deck, accountId),
+        }))
+      : [fallbackTeam];
+
+    return {
+      teams: restoredTeams,
+      activeTeamId: saved.activeTeamId ?? restoredTeams[0].id,
+      playerTwoDeck: restoreDeck(saved.playerTwoDeck, accountId),
+    };
+  } catch {
+    return { teams: [fallbackTeam], activeTeamId: fallbackTeam.id, playerTwoDeck: [] };
+  }
 }
 
 function setActiveCardPool(accountId) {
@@ -480,58 +552,15 @@ function saveDecks() {
     playerTwoDeck: playerTwoDeck.map((entry) => ({ cardId: entry.card.id, move: entry.move })),
   };
   localStorage.setItem(deckStorageKey(), JSON.stringify(payload));
+  renderTwoPlayerSetup();
 }
 
 function restoreDecks() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(deckStorageKey()) ?? "{}");
-
-    if (saved.ownerName !== ownerName || saved.accountId !== activeAccount().id) {
-      playerDeck = [];
-      playerTwoDeck = [];
-      return;
-    }
-
-    if (Array.isArray(saved.teams) && saved.teams.length > 0) {
-      teams = saved.teams.map((team, index) => ({
-        id: team.id ?? crypto.randomUUID(),
-        name: team.name ?? `チーム${index + 1}`,
-        deck: restoreDeck(team.deck),
-      }));
-      activeTeamId = saved.activeTeamId ?? teams[0].id;
-      syncPlayerDeck();
-    } else {
-      teams = [createTeam("チーム1")];
-      activeTeamId = teams[0].id;
-      playerDeck = teams[0].deck;
-    }
-
-    playerTwoDeck = restoreDeck(saved.playerTwoDeck);
-  } catch {
-    teams = [createTeam("チーム1")];
-    activeTeamId = teams[0].id;
-    playerDeck = teams[0].deck;
-    playerTwoDeck = [];
-  }
-}
-
-function restoreDeck(savedDeck = []) {
-  const restored = [];
-
-  for (const item of savedDeck) {
-    const card = cardById(item.cardId);
-    const move = getMoves(card ?? {})[0];
-
-    if (card && restored.filter((entry) => entry.card.id === card.id).length < card.copies) {
-      restored.push({
-        uid: crypto.randomUUID(),
-        card,
-        move: item.move ?? move,
-      });
-    }
-  }
-
-  return restored.slice(0, maxDeckSize);
+  const state = loadDeckStateForAccount(activeAccount().id);
+  teams = state.teams;
+  activeTeamId = state.activeTeamId;
+  syncPlayerDeck();
+  playerTwoDeck = state.playerTwoDeck;
 }
 
 function makeBattleCard(entry) {
@@ -593,6 +622,22 @@ function attackHits(action) {
   return ["attack", "strongAttack", "piercingAttack"].includes(action);
 }
 
+function actionDisplayName(card, action) {
+  if (action === "attack") {
+    return card.move ?? actionLabels.attack;
+  }
+
+  if (action === "strongAttack") {
+    return `強攻撃: ${card.move ?? actionLabels.attack}`;
+  }
+
+  if (action === "piercingAttack") {
+    return `貫通: ${card.move ?? actionLabels.attack}`;
+  }
+
+  return actionLabels[action];
+}
+
 function availableActions(card) {
   const baseActions = ["attack", "defense", "charge", "counter"];
   const used = card.usedActions ?? new Set();
@@ -639,7 +684,7 @@ function currentPlayerName() {
     return "ソウスケ";
   }
 
-  return battleMode === "twoPlayer" ? "1P" : "あなた";
+  return battleMode === "twoPlayer" ? "ソウスケ" : "あなた";
 }
 
 function currentOpponentName() {
@@ -647,7 +692,7 @@ function currentOpponentName() {
     return battleMode === "twoPlayer" ? "エマ" : "CPU";
   }
 
-  return battleMode === "twoPlayer" ? "2P" : "CPU";
+  return battleMode === "twoPlayer" ? "エマ" : "CPU";
 }
 
 function resolveTurn(playerAction) {
@@ -662,7 +707,7 @@ function resolveTurn(playerAction) {
 
   const cpuAction = chooseCpuAction();
   const messages = [
-    `${currentPlayerName()}: ${actionLabels[playerAction]} / ${currentOpponentName()}: ${actionLabels[cpuAction]}`,
+    `${currentPlayerName()}: ${actionDisplayName(player, playerAction)} / ${currentOpponentName()}: ${actionDisplayName(cpu, cpuAction)}`,
   ];
 
   player.charged = false;
@@ -717,7 +762,7 @@ function markActionUsed(card, action) {
 
 function resolveActionPair(playerAction, opponentAction) {
   const messages = [
-    `${currentPlayerName()}: ${actionLabels[playerAction]} / ${currentOpponentName()}: ${actionLabels[opponentAction]}`,
+    `${currentPlayerName()}: ${actionDisplayName(player, playerAction)} / ${currentOpponentName()}: ${actionDisplayName(cpu, opponentAction)}`,
   ];
 
   player.charged = false;
@@ -965,7 +1010,7 @@ function renderActions() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "skill-button";
-    button.textContent = `${actorName}: 行動なし`;
+    button.textContent = `${actorName}: ${actionDisplayName(actingCard, "skip")}`;
     button.disabled = battleOver;
     button.addEventListener("click", () => resolveTurn("skip"));
     actionButtons.append(button);
@@ -976,7 +1021,8 @@ function renderActions() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "skill-button";
-    button.textContent = isShortBattle && battleMode === "twoPlayer" ? `${actorName}: ${actionLabels[action]}` : actionLabels[action];
+    const label = actionDisplayName(actingCard, action);
+    button.textContent = isShortBattle && battleMode === "twoPlayer" ? `${actorName}: ${label}` : label;
 
     if (action === "defense" || action === "counter") {
       button.classList.add("secondary");
@@ -1025,23 +1071,124 @@ function buildCpuDeck() {
   return result;
 }
 
+function accountTeams(accountId) {
+  if (accountId === activeAccount().id) {
+    return teams;
+  }
+
+  return loadDeckStateForAccount(accountId).teams;
+}
+
+function deckNameOptions(target, accountId) {
+  target.innerHTML = "";
+
+  for (const team of accountTeams(accountId)) {
+    const option = document.createElement("option");
+    option.value = team.name;
+    target.append(option);
+  }
+}
+
+function deckByName(accountId, name) {
+  return accountTeams(accountId).find((team) => team.name === name);
+}
+
+function fillDefaultDeckName(input, accountId) {
+  const accountDecks = accountTeams(accountId);
+  if (!input.value && accountDecks[0]) {
+    input.value = accountDecks[0].name;
+  }
+}
+
+function orderOptionsHtml(deck, selectedIndex) {
+  return deck.deck
+    .map((entry, index) => `
+      <option value="${index}" ${index === selectedIndex ? "selected" : ""}>
+        ${entry.card.name} / 技: ${entry.move}
+      </option>
+    `)
+    .join("");
+}
+
+function renderOrderControls(container, deck, side) {
+  container.innerHTML = "";
+
+  if (!deck || deck.deck.length === 0) {
+    container.innerHTML = `<p class="empty-message">デッキが見つかりません。</p>`;
+    return;
+  }
+
+  deck.deck.forEach((entry, index) => {
+    const label = document.createElement("label");
+    label.textContent = `${index + 1}番目`;
+    label.innerHTML = `
+      ${index + 1}番目
+      <select data-battle-order="${side}">${orderOptionsHtml(deck, index)}</select>
+    `;
+    container.append(label);
+  });
+}
+
+function renderTwoPlayerSetup() {
+  const isTwoPlayer = battleMode === "twoPlayer";
+  twoPlayerSetup.classList.toggle("is-hidden", !isTwoPlayer);
+
+  if (!isTwoPlayer) {
+    return;
+  }
+
+  deckNameOptions(sousukeDeckNames, "sousuke");
+  deckNameOptions(emmaDeckNames, "emma");
+  fillDefaultDeckName(sousukeDeckNameInput, "sousuke");
+  fillDefaultDeckName(emmaDeckNameInput, "emma");
+
+  const sousukeDeck = deckByName("sousuke", sousukeDeckNameInput.value);
+  const emmaDeck = deckByName("emma", emmaDeckNameInput.value);
+  renderOrderControls(sousukeBattleOrder, sousukeDeck, "sousuke");
+  renderOrderControls(emmaBattleOrder, emmaDeck, "emma");
+}
+
+function orderedDeckFromControls(accountId, name, side) {
+  const deck = deckByName(accountId, name);
+
+  if (!deck || deck.deck.length === 0) {
+    return null;
+  }
+
+  const indexes = [...document.querySelectorAll(`[data-battle-order="${side}"]`)].map((select) =>
+    Number(select.value)
+  );
+
+  if (indexes.length !== deck.deck.length || new Set(indexes).size !== indexes.length) {
+    return null;
+  }
+
+  return indexes.map((index) => ({ ...deck.deck[index], uid: crypto.randomUUID() }));
+}
+
 function startBattle() {
   isShortBattle = false;
   battleScreen.classList.remove("short-battle-board");
 
-  if (playerDeck.length === 0) {
+  if (battleMode === "twoPlayer") {
+    const sousukeDeck = orderedDeckFromControls("sousuke", sousukeDeckNameInput.value, "sousuke");
+    const emmaDeck = orderedDeckFromControls("emma", emmaDeckNameInput.value, "emma");
+
+    if (!sousukeDeck || !emmaDeck) {
+      teamSummary.textContent = "ソウスケとエマのデッキ名、出す順番を確認してください。";
+      return;
+    }
+
+    playerBattleDeck = sousukeDeck;
+    opponentBattleDeck = emmaDeck;
+  } else if (playerDeck.length === 0) {
     teamSummary.textContent = "自分のデッキにカードを入れてください。";
     return;
+  } else {
+    playerBattleDeck = playerDeck.map((entry) => ({ ...entry }));
+    opponentBattleDeck = buildCpuDeck();
   }
 
-  if (battleMode === "twoPlayer" && playerTwoDeck.length === 0) {
-    teamSummary.textContent = "二人目のデッキにカードを入れてください。";
-    return;
-  }
-
-  playerBattleDeck = playerDeck.map((entry) => ({ ...entry }));
-  opponentBattleDeck =
-    battleMode === "cpu" ? buildCpuDeck() : playerTwoDeck.map((entry) => ({ ...entry }));
   playerActiveIndex = 0;
   opponentActiveIndex = 0;
   player = makeBattleCard(playerBattleDeck[0]);
@@ -1085,13 +1232,23 @@ function renderDeckList(deck, target, targetName) {
 
 function renderDecks() {
   renderTeamOptions();
-  playerTwoDeckPanel.classList.toggle("is-hidden", battleMode !== "twoPlayer");
+  renderTwoPlayerSetup();
+  playerTwoDeckPanel.classList.add("is-hidden");
   renderDeckList(playerDeck, playerDeckList, "player");
   renderDeckList(playerTwoDeck, playerTwoDeckList, "playerTwo");
 
-  const second = battleMode === "twoPlayer" ? ` / 2P ${playerTwoDeck.length}/${maxDeckSize}` : "";
-  teamSummary.textContent = `1P ${playerDeck.length}/${maxDeckSize}${second}`;
-  startBattleButton.disabled = playerDeck.length === 0 || (battleMode === "twoPlayer" && playerTwoDeck.length === 0);
+  if (battleMode === "twoPlayer") {
+    const sousukeDeck = deckByName("sousuke", sousukeDeckNameInput.value);
+    const emmaDeck = deckByName("emma", emmaDeckNameInput.value);
+    const hasSousukeDeck = Boolean(sousukeDeck?.deck.length);
+    const hasEmmaDeck = Boolean(emmaDeck?.deck.length);
+    teamSummary.textContent = `二人対戦: ソウスケ「${sousukeDeckNameInput.value || "未指定"}」 / エマ「${emmaDeckNameInput.value || "未指定"}」`;
+    startBattleButton.disabled = !hasSousukeDeck || !hasEmmaDeck;
+    return;
+  }
+
+  teamSummary.textContent = `自分 ${playerDeck.length}/${maxDeckSize}`;
+  startBattleButton.disabled = playerDeck.length === 0;
 }
 
 function renderTeamOptions() {
@@ -1106,6 +1263,7 @@ function renderTeamOptions() {
   }
 
   deleteTeamButton.disabled = teams.length <= 1;
+  teamNameInput.value = activeTeam().name;
 }
 
 function renderChoices() {
@@ -1156,7 +1314,7 @@ function renderChoices() {
     playerButton.disabled = !canAddToDeck(card, playerDeck);
     playerButton.addEventListener("click", () => addToDeck(card.id, playerMove.value, "player"));
 
-    controls[1].classList.toggle("is-hidden", battleMode !== "twoPlayer");
+    controls[1].classList.add("is-hidden");
     playerTwoButton.disabled = !canAddToDeck(card, playerTwoDeck);
     playerTwoButton.addEventListener("click", () => addToDeck(card.id, playerTwoMove.value, "playerTwo"));
 
@@ -1453,6 +1611,25 @@ teamSelect.addEventListener("change", () => {
   syncPlayerDeck();
   saveDecks();
   renderAll();
+});
+
+teamNameInput.addEventListener("input", () => {
+  const nextName = teamNameInput.value.trim() || "名前なしデッキ";
+  activeTeam().name = nextName;
+  saveDecks();
+  renderTeamOptions();
+});
+
+sousukeDeckNameInput.addEventListener("input", () => {
+  twoPlayerDeckNames.sousuke = sousukeDeckNameInput.value;
+  renderTwoPlayerSetup();
+  renderDecks();
+});
+
+emmaDeckNameInput.addEventListener("input", () => {
+  twoPlayerDeckNames.emma = emmaDeckNameInput.value;
+  renderTwoPlayerSetup();
+  renderDecks();
 });
 
 newTeamButton.addEventListener("click", () => {

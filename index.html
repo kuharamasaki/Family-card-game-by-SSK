@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Family-card-game by SSK</title>
-    <link rel="stylesheet" href="style.css?v=20260509-1">
+    <link rel="stylesheet" href="style.css?v=20260509-2">
   </head>
   <body>
     <main class="app">
@@ -93,9 +93,37 @@
             使うチーム
             <select id="teamSelect"></select>
           </label>
+          <label>
+            デッキ名
+            <input id="teamNameInput" type="text" maxlength="24" placeholder="デッキ名">
+          </label>
           <button id="newTeamButton" class="plain-button" type="button">新しいチーム</button>
           <button id="deleteTeamButton" class="plain-button" type="button">チーム削除</button>
         </div>
+        <section id="twoPlayerSetup" class="two-player-setup is-hidden">
+          <div class="duel-deck-names">
+            <label>
+              ソウスケのデッキ名
+              <input id="sousukeDeckNameInput" list="sousukeDeckNames" type="text" placeholder="デッキ名を入力">
+              <datalist id="sousukeDeckNames"></datalist>
+            </label>
+            <label>
+              エマのデッキ名
+              <input id="emmaDeckNameInput" list="emmaDeckNames" type="text" placeholder="デッキ名を入力">
+              <datalist id="emmaDeckNames"></datalist>
+            </label>
+          </div>
+          <div class="duel-order-grid">
+            <section class="deck-panel">
+              <h3>ソウスケの出す順番</h3>
+              <div id="sousukeBattleOrder" class="order-controls"></div>
+            </section>
+            <section class="deck-panel">
+              <h3>エマの出す順番</h3>
+              <div id="emmaBattleOrder" class="order-controls"></div>
+            </section>
+          </div>
+        </section>
         <div class="deck-grid">
           <section class="deck-panel">
             <h3>自分のデッキ</h3>
@@ -152,6 +180,6 @@
       </section>
     </main>
 
-    <script src="script.js?v=20260509-1"></script>
+    <script src="script.js?v=20260509-2"></script>
   </body>
 </html>
