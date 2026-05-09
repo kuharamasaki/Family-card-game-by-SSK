@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Family-card-game by SSK</title>
-    <link rel="stylesheet" href="style.css?v=20260504-4">
+    <link rel="stylesheet" href="style.css?v=20260509-1">
   </head>
   <body>
     <main class="app">
@@ -24,8 +24,12 @@
         <div class="import-actions">
           <button id="shortBattleButton" class="start-button" type="button">ショートバトル</button>
           <label class="file-button">
-            カードを選ぶ
-            <input id="jsonInput" type="file" accept="application/json,.json">
+            ソウスケのカード
+            <input data-json-input="sousuke" type="file" accept="application/json,.json">
+          </label>
+          <label class="file-button">
+            エマのカード
+            <input data-json-input="emma" type="file" accept="application/json,.json">
           </label>
         </div>
       </section>
@@ -148,6 +152,6 @@
       </section>
     </main>
 
-    <script src="script.js?v=20260504-4"></script>
+    <script src="script.js?v=20260509-1"></script>
   </body>
 </html>

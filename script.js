@@ -3,7 +3,7 @@ const maxDeckSize = 5;
 const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260504-4";
+const cardImageVersion = "20260509-1";
 
 const rarityBaselines = {
   normal: 150,
@@ -146,6 +146,7 @@ const deckStorageKeyPrefix = "luminaBattleDecks";
 
 let ownedCards = [];
 let ownerName = "";
+let cardPools = {};
 let activeAccountId = localStorage.getItem(activeAccountStorageKey) ?? "sousuke";
 let teams = [];
 let activeTeamId = "";
@@ -168,7 +169,7 @@ let shortPlayerWins = 0;
 let shortOpponentWins = 0;
 let pendingShortPlayerAction = "";
 
-const jsonInput = document.querySelector("#jsonInput");
+const jsonInputs = document.querySelectorAll("[data-json-input]");
 const shortBattleButton = document.querySelector("#shortBattleButton");
 const accountButtons = document.querySelectorAll("[data-account-id]");
 const accountSummary = document.querySelector("#accountSummary");
@@ -286,6 +287,44 @@ function renderAccount() {
   for (const button of accountButtons) {
     button.classList.toggle("is-active", button.dataset.accountId === account.id);
   }
+}
+
+function resetNormalDeckState() {
+  teams = [createTeam("チーム1")];
+  activeTeamId = teams[0].id;
+  playerDeck = teams[0].deck;
+  playerTwoDeck = [];
+}
+
+function setActiveCardPool(accountId) {
+  const account = accounts.find((item) => item.id === accountId) ?? activeAccount();
+  const pool = cardPools[account.id];
+  activeAccountId = account.id;
+  localStorage.setItem(activeAccountStorageKey, activeAccountId);
+  isShortBattle = false;
+  shortSetupScreen.classList.add("is-hidden");
+
+  if (!pool) {
+    ownedCards = [];
+    ownerName = account.name;
+    resetNormalDeckState();
+    selectTitle.textContent = `${account.name}のチーム編成`;
+    poolSummary.textContent = `${account.name}のカードファイルを読み込んでください。`;
+    resetGame();
+    renderAccount();
+    renderAll();
+    return;
+  }
+
+  ownedCards = pool.cards;
+  ownerName = pool.ownerName;
+  resetNormalDeckState();
+  selectTitle.textContent = `${account.name}のチーム編成`;
+  poolSummary.textContent = `${account.name}専用: ${ownedCards.length}種類 / 合計${pool.totalCards}枚`;
+  restoreDecks();
+  resetGame();
+  renderAccount();
+  renderAll();
 }
 
 function normalizeImagePath(image) {
@@ -1207,31 +1246,23 @@ function resetGame() {
   statusText.textContent = "スキルを選んでね";
 }
 
-function loadBattleExport(file) {
+function loadBattleExport(file, accountId = activeAccountId) {
   const reader = new FileReader();
 
   reader.addEventListener("load", () => {
     try {
       const result = parseBattleExport(String(reader.result));
-      isShortBattle = false;
-      shortSetupScreen.classList.add("is-hidden");
-      ownedCards = result.cards;
-      ownerName = result.owner.name ?? activeAccount().name;
-      teams = [createTeam("チーム1")];
-      activeTeamId = teams[0].id;
-      playerDeck = teams[0].deck;
-      selectTitle.textContent = `${activeAccount().name}のチーム編成`;
-      poolSummary.textContent =
-        `${activeAccount().name}専用: ${ownedCards.length}種類 / 合計${result.totalCards}枚`;
-      restoreDecks();
-      resetGame();
-      renderAll();
+      const account = accounts.find((item) => item.id === accountId) ?? activeAccount();
+      cardPools[account.id] = {
+        cards: result.cards,
+        ownerName: result.owner.name ?? account.name,
+        totalCards: result.totalCards,
+        uniqueCards: result.uniqueCards,
+      };
+      setActiveCardPool(account.id);
     } catch (error) {
       ownedCards = [];
-      teams = [createTeam("チーム1")];
-      activeTeamId = teams[0].id;
-      playerDeck = teams[0].deck;
-      playerTwoDeck = [];
+      resetNormalDeckState();
       poolSummary.textContent = error.message;
       renderAll();
     }
@@ -1360,13 +1391,15 @@ function startPreparedShortBattle() {
   renderBattle();
 }
 
-jsonInput.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
+for (const input of jsonInputs) {
+  input.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
 
-  if (file) {
-    loadBattleExport(file);
-  }
-});
+    if (file) {
+      loadBattleExport(file, input.dataset.jsonInput);
+    }
+  });
+}
 
 shortBattleButton.addEventListener("click", startShortBattle);
 
@@ -1388,18 +1421,7 @@ startShortPreparedButton.addEventListener("click", startPreparedShortBattle);
 
 for (const button of accountButtons) {
   button.addEventListener("click", () => {
-    isShortBattle = false;
-    shortSetupScreen.classList.add("is-hidden");
-    activeAccountId = button.dataset.accountId;
-    localStorage.setItem(activeAccountStorageKey, activeAccountId);
-    teams = [createTeam("チーム1")];
-    activeTeamId = teams[0].id;
-    playerDeck = teams[0].deck;
-    playerTwoDeck = [];
-    restoreDecks();
-    resetGame();
-    renderAccount();
-    renderAll();
+    setActiveCardPool(button.dataset.accountId);
   });
 }
 
