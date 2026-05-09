@@ -2,8 +2,9 @@ const expectedFormat = "lumina-battle-export-v1";
 const maxDeckSize = 5;
 const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
+const counterSelfDamage = 10;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260509-2";
+const cardImageVersion = "20260509-3";
 
 const rarityBaselines = {
   normal: 150,
@@ -669,8 +670,8 @@ function resolveAttack(attacker, defender, attackerAction, defenderAction) {
 
   if (defenderAction === "counter") {
     attacker.currentHp -= damage;
-    defender.currentHp -= 1;
-    return `${defender.name}のカウンター！ ${attacker.name}に${damage}ダメージ。${defender.name}は1ダメージ受けた。`;
+    defender.currentHp -= counterSelfDamage;
+    return `${defender.name}のカウンター！ ${attacker.name}に${damage}ダメージ。${defender.name}は${counterSelfDamage}ダメージ受けた。`;
   }
 
   const reduction = defenseReduction(defender, defenderAction, attackerAction);
