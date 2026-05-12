@@ -4,7 +4,7 @@ const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
 const counterSelfDamage = 10;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260509-3";
+const cardImageVersion = "20260512-1";
 
 const rarityBaselines = {
   normal: 150,
@@ -24,6 +24,7 @@ const elementAdvantage = {
   electric: "water",
   star: "electric",
   "star-electric": "fire",
+  dark: "star",
 };
 
 const fallbackElementLabels = {
@@ -33,6 +34,7 @@ const fallbackElementLabels = {
   electric: "電気",
   star: "星",
   "star-electric": "星・電気",
+  dark: "闇",
 };
 
 const elementColors = {
@@ -42,6 +44,7 @@ const elementColors = {
   electric: "#a57b13",
   star: "#6f55b8",
   "star-electric": "#7d5ac7",
+  dark: "#32264f",
 };
 
 const moveTable = {
@@ -80,6 +83,12 @@ const moveTable = {
     rare: ["ビッグスター", "カミナリ"],
     super_rare: ["スターラッシュ"],
     ultra_rare: ["ギャラクシー・リベレーション"],
+  },
+  dark: {
+    normal: ["黒星崩壊（こくせいほうかい）", "ナイトフォール・レクイエム"],
+    rare: ["黒星崩壊（こくせいほうかい）", "ナイトフォール・レクイエム"],
+    super_rare: ["黒星崩壊（こくせいほうかい）", "ナイトフォール・レクイエム"],
+    ultra_rare: ["黒星崩壊（こくせいほうかい）", "ナイトフォール・レクイエム"],
   },
 };
 
