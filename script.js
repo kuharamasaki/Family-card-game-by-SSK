@@ -4,7 +4,7 @@ const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
 const counterSelfDamage = 10;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260512-2";
+const cardImageVersion = "20260512-3";
 
 const rarityBaselines = {
   normal: 150,
@@ -153,6 +153,7 @@ const shortBattleCards = [
 ];
 const activeAccountStorageKey = "luminaBattleActiveAccount";
 const deckStorageKeyPrefix = "luminaBattleDecks";
+const cardPoolsStorageKey = "luminaBattleCardPools";
 
 let ownedCards = [];
 let ownerName = "";
@@ -179,6 +180,12 @@ let shortRoundTurn = 1;
 let shortPlayerWins = 0;
 let shortOpponentWins = 0;
 let pendingShortPlayerAction = "";
+
+try {
+  cardPools = JSON.parse(localStorage.getItem(cardPoolsStorageKey) ?? "{}");
+} catch {
+  cardPools = {};
+}
 
 const jsonInputs = document.querySelectorAll("[data-json-input]");
 const shortBattleButton = document.querySelector("#shortBattleButton");
@@ -407,6 +414,10 @@ function setActiveCardPool(accountId) {
   resetGame();
   renderAccount();
   renderAll();
+}
+
+function saveCardPools() {
+  localStorage.setItem(cardPoolsStorageKey, JSON.stringify(cardPools));
 }
 
 function normalizeImagePath(image) {
@@ -1427,6 +1438,7 @@ function loadBattleExport(file, accountId = activeAccountId) {
         totalCards: result.totalCards,
         uniqueCards: result.uniqueCards,
       };
+      saveCardPools();
       setActiveCardPool(account.id);
     } catch (error) {
       ownedCards = [];
@@ -1673,5 +1685,10 @@ clearDeckButton.addEventListener("click", () => {
 
 startBattleButton.addEventListener("click", startBattle);
 resetButton.addEventListener("click", resetGame);
-renderAccount();
-renderAll();
+
+if (cardPools[activeAccountId]) {
+  setActiveCardPool(activeAccountId);
+} else {
+  renderAccount();
+  renderAll();
+}
