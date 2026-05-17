@@ -4,7 +4,7 @@ const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
 const counterSelfDamage = 10;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260512-3";
+const cardImageVersion = "20260517-1";
 
 const rarityBaselines = {
   normal: 150,
@@ -700,6 +700,43 @@ function resolveAttack(attacker, defender, attackerAction, defenderAction) {
   return `${attacker.name}の${moveName}！ ${defender.name}に${finalDamage}ダメージ。`;
 }
 
+function resolveAttacksBySpeed(firstCard, secondCard, firstAction, secondAction, messages) {
+  const attacks = [];
+
+  if (attackHits(firstAction)) {
+    attacks.push({
+      attacker: firstCard,
+      defender: secondCard,
+      action: firstAction,
+      defenderAction: secondAction,
+      order: 0,
+    });
+  }
+
+  if (attackHits(secondAction)) {
+    attacks.push({
+      attacker: secondCard,
+      defender: firstCard,
+      action: secondAction,
+      defenderAction: firstAction,
+      order: 1,
+    });
+  }
+
+  attacks.sort((a, b) => {
+    const speedDiff = Number(b.attacker.speed ?? 0) - Number(a.attacker.speed ?? 0);
+    return speedDiff || a.order - b.order;
+  });
+
+  for (const attack of attacks) {
+    if (attack.attacker.currentHp <= 0 || attack.defender.currentHp <= 0) {
+      continue;
+    }
+
+    messages.push(resolveAttack(attack.attacker, attack.defender, attack.action, attack.defenderAction));
+  }
+}
+
 function currentPlayerName() {
   if (isShortBattle) {
     return "ソウスケ";
@@ -744,13 +781,7 @@ function resolveTurn(playerAction) {
     messages.push(`${cpu.name}は力を溜めた。`);
   }
 
-  if (attackHits(playerAction)) {
-    messages.push(resolveAttack(player, cpu, playerAction, cpuAction));
-  }
-
-  if (cpu.currentHp > 0 && attackHits(cpuAction)) {
-    messages.push(resolveAttack(cpu, player, cpuAction, playerAction));
-  }
+  resolveAttacksBySpeed(player, cpu, playerAction, cpuAction, messages);
 
   player.currentHp = Math.max(0, player.currentHp);
   cpu.currentHp = Math.max(0, cpu.currentHp);
@@ -801,13 +832,7 @@ function resolveActionPair(playerAction, opponentAction) {
     messages.push(`${cpu.name}は力を溜めた。`);
   }
 
-  if (attackHits(playerAction)) {
-    messages.push(resolveAttack(player, cpu, playerAction, opponentAction));
-  }
-
-  if (cpu.currentHp > 0 && attackHits(opponentAction)) {
-    messages.push(resolveAttack(cpu, player, opponentAction, playerAction));
-  }
+  resolveAttacksBySpeed(player, cpu, playerAction, opponentAction, messages);
 
   player.currentHp = Math.max(0, player.currentHp);
   cpu.currentHp = Math.max(0, cpu.currentHp);
@@ -1382,10 +1407,12 @@ function renderTraining() {
             <label>攻撃<input data-stat="attack" type="number" inputmode="numeric" min="1" value="${card.attack}"></label>
             <label>防御<input data-stat="defense" type="number" inputmode="numeric" min="1" value="${card.defense}"></label>
           </div>
-          <p class="${message.className}">${message.text}</p>
+          <p data-training-message class="${message.className}">${message.text}</p>
         </div>
       </div>
     `;
+
+    const messageElement = article.querySelector("[data-training-message]");
 
     for (const input of article.querySelectorAll("[data-stat]")) {
       input.addEventListener("input", () => {
@@ -1394,7 +1421,10 @@ function renderTraining() {
         card[key] = value;
         card.stats[key === "attack" ? "power" : key] = value;
         saveDecks();
-        renderAll();
+
+        const nextMessage = trainingMessage(card);
+        messageElement.className = nextMessage.className;
+        messageElement.textContent = nextMessage.text;
       });
     }
 
