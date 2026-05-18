@@ -4,7 +4,7 @@ const shortBattleSize = 3;
 const shortCardTurnLimit = 4;
 const counterSelfDamage = 10;
 const statKeys = ["hp", "attack", "defense"];
-const cardImageVersion = "20260517-1";
+const cardImageVersion = "20260517-2";
 
 const rarityBaselines = {
   normal: 150,
