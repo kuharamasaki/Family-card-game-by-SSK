@@ -3,7 +3,7 @@
   --bg: #f4f7f1;
   --ink: #18211c;
   --muted: #5c6a61;
-  --panel: #ffffff;
+  --panel: rgba(255, 255, 255, 0.78);
   --line: #d9e2d8;
   --accent: #24745a;
   --accent-strong: #155943;
@@ -12,6 +12,7 @@
   --fire: #cf4f2c;
   --grass: #3c8f52;
   --shadow: 0 18px 45px rgba(24, 33, 28, 0.12);
+  --glass-blur: blur(14px) saturate(1.18);
 }
 
 * {
@@ -79,6 +80,8 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   color: var(--ink);
   cursor: pointer;
   box-shadow: var(--shadow);
@@ -94,7 +97,9 @@ h2 {
 .card-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow);
 }
 
@@ -303,7 +308,9 @@ h2 {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: 0 10px 25px rgba(24, 33, 28, 0.08);
 }
 
@@ -356,7 +363,9 @@ h2 {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f9fbf8;
+  background: rgba(249, 251, 248, 0.68);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .deck-panel h3 {
@@ -476,6 +485,8 @@ h2 {
   border: 2px solid transparent;
   border-radius: 8px;
   background: var(--panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   color: var(--ink);
   text-align: left;
   cursor: pointer;
